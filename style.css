@@ -1,5 +1,9 @@
 @charset "UTF-8";
 h1 {
-    color: blue;
+    color: blueviolet;
     font-variant: bold;
+}
+
+body {
+    text-align: center;
 }

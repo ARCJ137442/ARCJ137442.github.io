@@ -1,0 +1,22 @@
+@charset "UTF-8";
+/* body {
+  background-color: #333;
+  color: #fff;
+} */
+
+h1 {
+  text-align: left;
+
+  font-weight: bold;
+
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.42857143;
+  color: #333;
+  background-color: #fff;
+}

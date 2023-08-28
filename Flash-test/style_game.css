@@ -1,0 +1,28 @@
+@charset "UTF-8";
+body {
+  background-color: #333;
+  color: #fff;
+}
+
+#game {
+  /* 样式 */
+  display: block;
+  margin: 0 auto;
+  border: 3px solid black;
+  /* 位置属性 */
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  user-zoom: fixed;
+  scroll-behavior: initial;
+  
+  /* ! 99% 消除滚动条 */
+  width: 99% !important; 
+  height: 99% !important; 
+  
+  min-width: max-content;
+  min-height: max-content;
+
+}
