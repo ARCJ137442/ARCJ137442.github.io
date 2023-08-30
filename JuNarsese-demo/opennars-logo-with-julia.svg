@@ -1,0 +1,42 @@
+<svg id="整体" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720.79 608.59">
+    <defs>
+        <style>
+            .cls-1 {
+                fill: none;
+                stroke: #000;
+                stroke-miterlimit: 10;
+                stroke-width: 5px;
+            }
+
+            .cls-2 {
+                fill: #bc342d;
+            }
+
+            .cls-3 {
+                fill: #864e9f;
+            }
+
+            .cls-4 {
+                fill: #328a22;
+            }
+        </style>
+    </defs>
+    <g id="天平">
+        <path
+            d="M375.13,93.26v41.9c0,86.49-1.29,176.76-1.29,263.26,0,110,91.33,176,191.78,176v34.17H152.85V574.42s191.36,3.56,191.36-176c0-80-.42-215.66.52-315" />
+        <rect x="86.67" y="76.31" width="557.6" height="28.06" transform="translate(39.06 -97.24) rotate(16)" />
+        <g id="托盘">
+            <polygon class="cls-1" points="494.53 337.36 599.13 166.53 705.2 337.36 494.53 337.36" />
+            <path d="M720.79,337.36c-47.7,47.7-194.86,47.59-241.85.6Z" />
+        </g>
+        <g id="托盘-2" data-name="托盘">
+            <polygon class="cls-1" points="15.59 203.09 120.19 32.26 226.26 203.09 15.59 203.09" />
+            <path d="M241.85,203.09C194.15,250.79,47,250.68,0,203.69Z" />
+        </g>
+    </g>
+    <g id="julia">
+        <circle class="cls-2" cx="579.2" cy="304.63" r="17.48" />
+        <circle class="cls-3" cx="620.53" cy="304.63" r="17.48" />
+        <circle class="cls-4" cx="599.74" cy="269.43" r="17.48" />
+    </g>
+</svg>
