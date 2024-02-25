@@ -1,17 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Narsese结构展示器</title>
-  </head>
-  <body>
-    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
-    <script src="./bootstrap.js"></script>
-    <h1>Narsese结构展示</h1>
-    <div id="app">
-      输入Narsese：
-      <input id="input" type="text" placeholder="...">
-      <p style="white-space: pre; font-size: large;" id="output"></p>
+
+<head>
+  <meta charset="utf-8">
+  <title>Narsese结构展示器</title>
+</head>
+
+<body>
+  <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+  <h1>Narsese结构展示</h1>
+  <div id="app">
+    <div>
+      输入Narsese：<input id="input_ascii" type="text" placeholder="ASCII...">
     </div>
-  </body>
+    <div>
+      输入LaTeX：<input id="input_latex" type="text" placeholder="LaTeX...">
+    </div>
+    <div>
+      输入漢文：<input id="input_han" type="text" placeholder="漢文。。。">
+    </div>
+    <p class="output" id="output"></p>
+  </div>
+</body>
+
+<style>
+  .output {
+    white-space: pre;
+    font-size: large;
+  }
+</style>
+
+<script src="./bootstrap.js"></script>
+
 </html>
