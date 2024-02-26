@@ -6,25 +6,65 @@
   <title>Narsese结构展示器</title>
 </head>
 
+<!-- 
+  预加载：MathJax
+  ! 必须保证在主脚本之前加载
+ -->
+<script>
+  // Mock from <https://www.mathjax.org/#demo>
+  // !【2024-02-26 14:45:05】无法独立出一个JavaScript文件，会遇到加载顺序问题
+  window.MathJax = {
+    loader: { load: ['input/asciimath'] },
+    startup: {
+      pageReady: function () { }
+    },
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      processEscapes: true
+    }
+  };
+
+  //
+  //  Load MathJax
+  //
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+  script.setAttribute('id', 'MathJax-script');
+  document.head.appendChild(script);
+
+</script>
+<!-- <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script> -->
+<!-- <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> -->
+
 <body>
-  <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+  <noscript>此页包含WebAssembly与JavaScript内容，请在您的浏览器中启用JavaScript。</noscript>
   <h1>Narsese结构展示</h1>
+
   <div id="app">
     <div>
-      输入Narsese：<input id="input_ascii" type="text" placeholder="ASCII...">
+      输入Narsese：<input id="input_ascii" class="input" type="text" placeholder="ASCII...">
     </div>
     <div>
-      输入LaTeX：<input id="input_latex" type="text" placeholder="LaTeX...">
+      输入LaTeX：<input id="input_latex" class="input" type="text" placeholder="LaTeX...">
+      <div id="latex_preview"></div>
     </div>
     <div>
-      输入漢文：<input id="input_han" type="text" placeholder="漢文。。。">
+      输入漢文：<input id="input_han" class="input" type="text" placeholder="漢文。。。">
     </div>
     <p class="output" id="output"></p>
   </div>
 </body>
 
 <style>
+  /* 输入：等宽、保留空格、中等大小 */
+  .input {
+    /* white-space: pre; */
+    font-size: medium;
+    font-family: Consolas, Monaco, 'Courier New', monospace;
+  }
+
   .output {
+    font-family: Consolas, Monaco, 'Courier New', monospace;
     white-space: pre;
     font-size: large;
   }
