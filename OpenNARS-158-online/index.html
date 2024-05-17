@@ -1,0 +1,44 @@
+<!-- 参考：https://labs.leaningtech.com/cheerpj3/getting-started/Java-app -->
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>OpenNARS 1.5.8 online powered by CheerpJ</title>
+    <!-- 加载第三方运行时库 -->
+    <script src="https://cjrtnc.leaningtech.com/3.0/cj3loader.js"></script>
+</head>
+
+<body>
+    <!-- 加载并运行.jar文件
+        ! 这个`.jar`文件必须能在Java8中运行
+        * 📌需要在编译器中开启`javac -source 1.8 -target 1.8`作为兼容性选项
+        * 📝本地调试命令可用 npx http-server -p 8080
+     -->
+    <!-- 搬迁日志 / 笔记
+        * 📝OpenNARS 3.0.4无法被迁移：在读取「默认配置」时使用了`java.lang.reflect`反射功能，这个功能不被Cheerpj支持
+        * 📝OpenNARS 1.5.8 Shell在迁移后使用体验不佳：命令行APP没有实际的「交互窗口」
+        * 🚩【2024-05-17 19:59:15】最终敲定使用OpenNARS 1.5.8 GUI
+    -->
+    <script>
+        /** OpenNARS 1.5.8 built from https://github.com/patham9/opennars_declarative_core */
+        const CONFIG = {
+            // 显示区域大小
+            width: 600,
+            height: 1000,
+            // .jar文件路径
+            jarPath: '/app/opennars-158-gui.jar',
+        };
+        (async () => {
+            // 加载器初始化
+            await cheerpjInit();
+            // 创建显示区域
+            cheerpjCreateDisplay(CONFIG.width, CONFIG.height);
+            // 运行.jar文件
+            await cheerpjRunJar(CONFIG.jarPath);
+        })();
+    </script>
+</body>
+
+</html>
