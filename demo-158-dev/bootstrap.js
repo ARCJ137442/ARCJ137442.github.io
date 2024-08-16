@@ -16,7 +16,7 @@
   \**********************/
 /***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
 
-eval("\n// A dependency graph that contains any wasm must all be imported\n// asynchronously. This `bootstrap.ts` file does the single async import, so\n// that no one else needs to worry about it again.\n__webpack_require__.e(/*! import() */ \"src_index_ts\").then(__webpack_require__.bind(__webpack_require__, /*! ./src/index */ \"./src/index.ts\"))\n    .catch(e => console.error(\"Error importing `src/index.ts`:\", e));\n\n\n//# sourceURL=webpack://create-wasm-app/./bootstrap.ts?");
+eval("\n// A dependency graph that contains any wasm must all be imported\n// asynchronously. This `bootstrap.ts` file does the single async import, so\n// that no one else needs to worry about it again.\n__webpack_require__.e(/*! import() */ \"src_index_ts\").then(__webpack_require__.bind(__webpack_require__, /*! ./src/index */ \"./src/index.ts\"))\n    .catch(e => console.error(\"Error importing `src/index.ts`:\", e));\n\n\n//# sourceURL=webpack://narust-wasm-demo/./bootstrap.ts?");
 
 /***/ })
 
@@ -191,7 +191,7 @@ eval("\n// A dependency graph that contains any wasm must all be imported\n// as
 /******/ 	/* webpack/runtime/load script */
 /******/ 	(() => {
 /******/ 		var inProgress = {};
-/******/ 		var dataWebpackPrefix = "create-wasm-app:";
+/******/ 		var dataWebpackPrefix = "narust-wasm-demo:";
 /******/ 		// loadScript function to load a script via script tag
 /******/ 		__webpack_require__.l = (url, done, key, chunkId) => {
 /******/ 			if(inProgress[url]) { inProgress[url].push(done); return; }
@@ -380,7 +380,7 @@ eval("\n// A dependency graph that contains any wasm must all be imported\n// as
 /******/ 		
 /******/ 		}
 /******/ 		
-/******/ 		var chunkLoadingGlobal = self["webpackChunkcreate_wasm_app"] = self["webpackChunkcreate_wasm_app"] || [];
+/******/ 		var chunkLoadingGlobal = self["webpackChunknarust_wasm_demo"] = self["webpackChunknarust_wasm_demo"] || [];
 /******/ 		chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
 /******/ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
 /******/ 	})();
