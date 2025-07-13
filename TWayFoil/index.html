@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="./webassembly.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TWayFoil WASM</title>
+  <!-- src/style.css -->
+  <script type="module" crossorigin src="./assets/index-D-xeve3T.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-YVG5vBrr.css">
+</head>
+
+<body>
+  <h1>TWayFoil WASM</h1>
+  <div class="container">
+    <div class="panel">
+      <h2>数据转图片</h2>
+      <input type="file" id="dataInput" accept=".*" />
+      <h3>二进制内容输入</h3>
+      <textarea id="dataText" placeholder="二进制内容 (\xXX)"></textarea>
+      <button id="downloadBtnImage">下载图片</button>
+      <h3>输出图片预览</h3>
+      <img id="convertedImage" src="#" alt="输出图片预览" style="display: none;" />
+    </div>
+    <div class="panel">
+      <h2>图片转数据</h2>
+      <input type="file" id="imageInput" accept="image/*" />
+      <h3>二进制内容输出</h3>
+      <textarea id="imageDataText" placeholder="图片二进制内容 (\xXX)"></textarea>
+      <button id="downloadBtnBin">下载二进制文件</button>
+      <h3>输入图片预览</h3>
+      <img id="previewImage" src="#" alt="输入图片预览" style="display: none;" />
+    </div>
+  </div>
+</body>
+
+</html>
