@@ -1,0 +1,12 @@
+{
+  "name": "arcj137442-github-pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:opennars-304-ts": "node scripts/build-opennars-304-ts.mjs",
+    "check:opennars-304-ts": "node scripts/check-opennars-304-ts.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

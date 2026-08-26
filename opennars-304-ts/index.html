@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071013">
+    <meta name="description" content="在浏览器中运行的 OpenNARS 3.0.4 TypeScript 交互式终端。">
+    <title>OpenNARS 3.0.4 TS — Web Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#terminal-input">跳到命令输入</a>
+
+    <header class="masthead">
+      <a class="identity" href="../" aria-label="返回 ARCJ137442 主页">
+        <span class="identity-mark" aria-hidden="true">N</span>
+        <span>
+          <span class="eyebrow">ARCJ137442 / NARS WORKS</span>
+          <strong>OPENNARS · 304 TS</strong>
+        </span>
+      </a>
+      <div class="runtime-state" aria-label="运行时状态">
+        <span class="state-light" aria-hidden="true"></span>
+        <span id="runtime-state">BOOTING WORKER</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">NON-AXIOMATIC REASONING SYSTEM / BROWSER INSTRUMENT</p>
+          <h1 id="page-title">NARS INTERACTIVE<br>TERMINAL</h1>
+        </div>
+        <p class="hero-note">
+          OpenNARS 3.0.4 的 TypeScript 迁移版直接运行在浏览器 Worker 中。输入 Narsese，
+          再用 <code>:cycles N</code> 推进推理时钟。
+        </p>
+      </section>
+
+      <div class="workbench">
+        <section class="terminal-panel" aria-labelledby="terminal-title">
+          <div class="panel-topline">
+            <div>
+              <span class="panel-index">INSTRUMENT 01</span>
+              <h2 id="terminal-title">REASONER CONSOLE</h2>
+            </div>
+            <div class="clock-readout" aria-label="当前 NARS 周期">
+              <span>CYCLE</span>
+              <output id="cycle-clock">000000</output>
+            </div>
+          </div>
+
+          <div class="terminal-shell">
+            <div class="terminal-toolbar" aria-hidden="true">
+              <span>OPEN-NARS // SINGLE-THREADED STEP MODE</span>
+              <span id="terminal-activity">INITIALIZING</span>
+            </div>
+            <div id="terminal-output" class="terminal-output" role="log" aria-live="polite" aria-relevant="additions text" aria-label="OpenNARS 输出"></div>
+            <form id="terminal-form" class="terminal-form">
+              <label for="terminal-input" class="prompt-mark">nars&gt;</label>
+              <input
+                id="terminal-input"
+                name="command"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                aria-describedby="terminal-hint"
+                placeholder="输入 Narsese 或 :help"
+                disabled
+              >
+              <button class="send-button" type="submit" disabled>EXECUTE</button>
+            </form>
+          </div>
+
+          <div class="terminal-actions">
+            <p id="terminal-hint">↑↓ 历史 · Ctrl+L 清屏 · Ctrl+C 中断并重启 Worker</p>
+            <div class="action-group">
+              <button id="clear-button" class="text-button" type="button">CLEAR OUTPUT</button>
+              <button id="interrupt-button" class="text-button danger" type="button">RESET SESSION</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="telemetry" aria-label="构建与使用信息">
+          <section class="telemetry-block version-block">
+            <span class="block-label">RUNTIME IDENTITY</span>
+            <dl>
+              <div>
+                <dt>CORE</dt>
+                <dd id="core-version">3.0.4</dd>
+              </div>
+              <div>
+                <dt>TS LIB</dt>
+                <dd id="package-version" data-package-version>0.1.0</dd>
+              </div>
+              <div>
+                <dt>SOURCE</dt>
+                <dd><a id="source-commit" href="https://github.com/ARCJ137442/OpenNARS-304-ts" rel="noreferrer">loading…</a></dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="telemetry-block">
+            <span class="block-label">BUILD STAMP</span>
+            <time id="build-time" data-build-time datetime="">loading…</time>
+            <span class="timezone">ASIA / SHANGHAI</span>
+          </section>
+
+          <section class="telemetry-block quickstart">
+            <span class="block-label">QUICK INPUT</span>
+            <p>依次发送前提、问题与周期命令：</p>
+            <div class="quick-buttons">
+              <button type="button" data-command="&lt;bird --&gt; animal&gt;.">01 / PREMISE</button>
+              <button type="button" data-command="&lt;bird --&gt; animal&gt;?">02 / QUESTION</button>
+              <button type="button" data-command=":cycles 10">03 / CYCLES 10</button>
+            </div>
+          </section>
+
+          <section class="telemetry-block notice">
+            <span class="block-label">EXECUTION MODEL</span>
+            <p>推理在独立 Web Worker 中执行。网页不上传输入，也不保存会话。</p>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <footer>
+      <span>PUBLIC RESEARCH ARTIFACT · OPENNARS 3.0.4 TYPESCRIPT</span>
+      <a href="https://github.com/ARCJ137442/OpenNARS-304-ts" rel="noreferrer">SOURCE / GITHUB ↗</a>
+    </footer>
+
+    <noscript>此终端需要 JavaScript 与 Web Worker 支持。</noscript>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

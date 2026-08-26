@@ -1,0 +1,2 @@
+# The generated worker contains upstream template literals whose trailing spaces are semantic.
+opennars-304-ts/nars-worker.js text eol=lf -whitespace
