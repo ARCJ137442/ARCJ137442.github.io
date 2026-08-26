@@ -1,3 +1,11 @@
+import {
+  canNavigateHistory,
+  formatCommandEcho,
+  normalizeCommandLines,
+  normalizeVolume,
+  shouldSubmitFromKeydown,
+} from "./input-behavior.js";
+
 const elements = {
   body: document.body,
   state: document.querySelector("#runtime-state"),
@@ -14,6 +22,8 @@ const elements = {
   packageVersion: document.querySelector("#package-version"),
   sourceCommit: document.querySelector("#source-commit"),
   buildTime: document.querySelector("#build-time"),
+  volume: document.querySelector("#volume-input"),
+  volumeValue: document.querySelector("#volume-value"),
 };
 
 const MAX_TERMINAL_LINES = 600;
@@ -23,6 +33,23 @@ let worker = null;
 let ready = false;
 let busy = false;
 let generation = 0;
+let refocusAfterRun = false;
+
+const INPUT_MAX_HEIGHT = 176;
+
+function resizeInput() {
+  elements.input.style.height = "0px";
+  const height = Math.min(elements.input.scrollHeight, INPUT_MAX_HEIGHT);
+  elements.input.style.height = `${height}px`;
+  elements.input.style.overflowY = elements.input.scrollHeight > INPUT_MAX_HEIGHT ? "auto" : "hidden";
+}
+
+function focusInput() {
+  if (!ready || busy || elements.input.disabled) return;
+  requestAnimationFrame(() => {
+    elements.input.focus({ preventScroll: true });
+  });
+}
 
 function appendLine(text, channel = "system") {
   const line = document.createElement("div");
@@ -48,10 +75,19 @@ function updateControls() {
   const enabled = ready && !busy;
   elements.input.disabled = !enabled;
   elements.submit.disabled = !enabled;
+  elements.volume.disabled = !enabled;
   for (const button of elements.quickButtons) button.disabled = !enabled;
   elements.body.classList.toggle("busy", busy);
   elements.activity.textContent = !ready ? "INITIALIZING" : busy ? "REASONING" : "READY";
   elements.state.textContent = !ready ? "BOOTING WORKER" : busy ? "INFERENCE ACTIVE" : "WORKER ONLINE";
+}
+
+function setVolumeDisplay(rawValue) {
+  const volume = normalizeVolume(rawValue);
+  if (volume === null) return;
+  elements.volume.value = String(volume);
+  elements.volumeValue.value = String(volume);
+  elements.volumeValue.textContent = String(volume);
 }
 
 function formatBuildTime(iso) {
@@ -121,6 +157,7 @@ function startWorker(reason = "initial boot") {
       elements.body.classList.add("ready");
       applyBuildMetadata(data.build);
       setClock(data.time);
+      setVolumeDisplay(data.volume);
       appendLine(`OpenNARS ${data.build.coreVersion} TypeScript worker online.`, "system");
       appendLine("Type :help for commands, or use QUICK INPUT to run the first inference.", "system");
       updateControls();
@@ -133,12 +170,18 @@ function startWorker(reason = "initial boot") {
       return;
     }
     if (data.type === "busy") {
+      const wasBusy = busy;
       busy = Boolean(data.busy);
       updateControls();
+      if (wasBusy && !busy && refocusAfterRun) {
+        refocusAfterRun = false;
+        focusInput();
+      }
       return;
     }
     if (data.type === "complete") {
       if (data.time !== undefined) setClock(data.time);
+      if (data.volume !== undefined) setVolumeDisplay(data.volume);
       return;
     }
     if (data.type === "fatal") {
@@ -165,38 +208,57 @@ function startWorker(reason = "initial boot") {
 }
 
 function submitCommand(rawCommand) {
-  const command = String(rawCommand ?? "").trim();
-  if (!command || !ready || busy || worker === null) return;
-  if (command === ":clear") {
+  const lines = normalizeCommandLines(rawCommand);
+  if (lines.length === 0 || !ready || busy || worker === null) return;
+  if (lines.length === 1 && lines[0] === ":clear") {
     clearOutput();
+    focusInput();
     return;
   }
-  appendLine(`nars> ${command}`, "input");
+  const command = lines.join("\n");
+  appendLine(formatCommandEcho(lines), "input");
   if (history.at(-1) !== command) history.push(command);
   historyIndex = history.length;
-  worker.postMessage({ type: "command", line: command });
+  refocusAfterRun = true;
+  worker.postMessage({ type: "command", lines });
 }
 
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
   const command = elements.input.value;
   elements.input.value = "";
+  resizeInput();
   submitCommand(command);
 });
 
 elements.input.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowUp" && history.length > 0) {
+  if (shouldSubmitFromKeydown(event)) {
+    event.preventDefault();
+    elements.form.requestSubmit();
+  } else if (event.key === "ArrowUp" && history.length > 0 && canNavigateHistory(event.key, elements.input.value, elements.input.selectionStart, elements.input.selectionEnd)) {
     event.preventDefault();
     historyIndex = Math.max(0, historyIndex - 1);
     elements.input.value = history[historyIndex] ?? "";
     elements.input.setSelectionRange(elements.input.value.length, elements.input.value.length);
-  } else if (event.key === "ArrowDown" && history.length > 0) {
+    resizeInput();
+  } else if (event.key === "ArrowDown" && history.length > 0 && canNavigateHistory(event.key, elements.input.value, elements.input.selectionStart, elements.input.selectionEnd)) {
     event.preventDefault();
     historyIndex = Math.min(history.length, historyIndex + 1);
     elements.input.value = historyIndex === history.length ? "" : history[historyIndex];
+    elements.input.setSelectionRange(elements.input.value.length, elements.input.value.length);
+    resizeInput();
   } else if (event.key === "Escape") {
     elements.input.value = "";
+    resizeInput();
   }
+});
+
+elements.input.addEventListener("input", resizeInput);
+
+elements.volume.addEventListener("input", () => setVolumeDisplay(elements.volume.value));
+elements.volume.addEventListener("change", () => {
+  const volume = normalizeVolume(elements.volume.value);
+  if (volume !== null) submitCommand(`:volume ${volume}`);
 });
 
 document.addEventListener("keydown", (event) => {
@@ -220,5 +282,6 @@ for (const button of elements.quickButtons) {
 appendLine("[boot] loading OpenNARS 3.0.4 TypeScript runtime…", "system");
 appendLine("[boot] reasoner state is local to this browser tab.", "system");
 updateControls();
+resizeInput();
 await loadBuildMetadata();
 startWorker();
