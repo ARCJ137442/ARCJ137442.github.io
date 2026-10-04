@@ -1,0 +1,1 @@
+function e(e,t,n){let r=1e3/Math.max(1,n);return Math.max(e+r,t)}export{e as t};
