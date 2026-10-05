@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人网站翻新蓝图 · ARCJ137442</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-card: #161b22;
+  --bg-card-hover: #1c2333;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --text-dim: #6e7681;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb;
+  --green: #3fb950;
+  --orange: #d29922;
+  --red: #f85149;
+  --purple: #bc8cff;
+  --pink: #f778ba;
+  --font-serif: 'Noto Serif SC', 'Songti SC', serif;
+  --font-sans: 'Noto Sans SC', 'PingFang SC', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+::selection { background: var(--accent-dim); color: #fff; }
+
+/* === HEADER === */
+.site-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,17,23,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+}
+.header-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center; gap: 2rem;
+  height: 56px;
+}
+.site-title {
+  font-family: var(--font-mono);
+  font-size: 0.9rem; font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.tab-nav { display: flex; gap: 0; }
+.tab-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-family: var(--font-sans); font-size: 0.85rem;
+  padding: 0.5rem 1rem; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* === MAIN === */
+.main-content {
+  max-width: 1200px; margin: 0 auto;
+  padding: 2rem;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* === HERO === */
+.hero {
+  text-align: center;
+  padding: 4rem 2rem 3rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 3rem;
+}
+.hero h1 {
+  font-family: var(--font-serif);
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero .subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.8;
+}
+
+/* === SECTIONS === */
+.section {
+  margin-bottom: 3rem;
+}
+.section-header {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.section-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--bg);
+  background: var(--accent);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+}
+.section-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--text);
+}
+
+/* === CARDS === */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+.card:hover {
+  border-color: var(--accent-dim);
+  background: var(--bg-card-hover);
+}
+.card h3 {
+  font-family: var(--font-serif);
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.card p, .card li {
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+.card ul { padding-left: 1.2rem; }
+.card li { margin-bottom: 0.3rem; }
+
+/* === TABLES === */
+.table-wrap {
+  overflow-x: auto;
+  margin: 1rem 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+th {
+  background: var(--bg-card);
+  font-weight: 700;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--border);
+  color: var(--accent);
+  white-space: nowrap;
+}
+td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(88,166,255,0.04); }
+td strong { color: var(--text); }
+
+/* === QUOTES === */
+blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.5rem;
+  margin: 1rem 0;
+  background: rgba(88,166,255,0.06);
+  border-radius: 0 8px 8px 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  line-height: 1.9;
+}
+
+/* === CODE === */
+pre {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.2rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 1rem 0;
+}
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: rgba(88,166,255,0.1);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+/* === INSIGHT BOXES === */
+.insight {
+  background: linear-gradient(135deg, rgba(88,166,255,0.08), rgba(188,140,255,0.08));
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+.insight .label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem; font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+.insight p {
+  color: var(--text);
+  font-family: var(--font-serif);
+  line-height: 1.9;
+}
+
+/* === GRID === */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 768px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 2rem; }
+  .main-content { padding: 1rem; }
+}
+
+/* === TIMELINE === */
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+  margin: 1rem 0;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding-left: 1rem;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -1.65rem; top: 0.5rem;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+.timeline-year {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--accent);
+}
+.timeline-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* === DIFF TABLE === */
+.diff-table td:first-child {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+.diff-table .old { color: var(--red); }
+.diff-table .new { color: var(--green); }
+
+/* === COMPARISON === */
+.compare-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.compare-arrow {
+  color: var(--text-dim);
+  font-size: 1.5rem;
+  align-self: center;
+}
+@media (max-width: 768px) {
+  .compare-row { grid-template-columns: 1fr; }
+  .compare-arrow { transform: rotate(90deg); justify-self: center; }
+}
+
+/* === BADGE === */
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem; font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin-right: 0.3rem;
+}
+.badge-active { background: rgba(63,185,80,0.2); color: var(--green); }
+.badge-frozen { background: rgba(210,153,34,0.2); color: var(--orange); }
+.badge-historical { background: rgba(110,118,129,0.2); color: var(--text-dim); }
+.badge-star { background: rgba(210,153,34,0.2); color: var(--orange); }
+
+/* === FOOTER === */
+.site-footer {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="site-title">ARCJ137442.github.io</div>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="blueprint">翻新蓝图</button>
+      <button class="tab-btn" data-tab="resume">简历对比</button>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+
+<!-- ==================== TAB 1: 翻新蓝图 ==================== -->
+<div id="blueprint" class="tab-panel active">
+
+<div class="hero">
+  <h1>个人网站翻新蓝图</h1>
+  <p class="subtitle">一份关于「ARCJ137442.github.io 应该成为什么」的完整调研与哲学框架</p>
+</div>
+
+<!-- 一、现状诊断 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2 class="section-title">现状诊断</h2>
+  </div>
+
+  <div class="card">
+    <h3>1.1 当前网站是什么</h3>
+    <p>一个 741 字节的 <code>index.html</code>，标题为「测试网站」，列出四个分类链接，CSS 仅两条规则，JS 仅一行 <code>console.info</code>。</p>
+    <div class="insight">
+      <div class="label">本质</div>
+      <p>这不是一个网站，是一个文件索引。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>1.2 公开 Profile 的真实构成</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>类别</th><th>数量</th><th>说明</th></tr>
+        <tr><td><strong>原创公开仓库</strong></td><td>48</td><td>你自己的代码</td></tr>
+        <tr><td><strong>纯 fork（零个人提交）</strong></td><td>20</td><td>存档/书签，不是你的工作</td></tr>
+        <tr><td><strong>fork + 有个人提交</strong></td><td>5</td><td>在他人项目上做了实质性修改</td></tr>
+      </table>
+    </div>
+    <p>那 20 个纯 fork 在你的 profile 上制造了噪音。</p>
+  </div>
+
+  <div class="card">
+    <h3>1.3 真正的活跃作品</h3>
+    <p style="margin-bottom:1rem;color:var(--accent);font-weight:700;">2026 年 — 个人仓库</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>项目</th><th>提交数</th><th>类型</th></tr>
+        <tr><td><strong>anymate-cc</strong></td><td>27</td><td>原创，动画/协调工具</td></tr>
+        <tr><td><strong>OpenSwipe</strong></td><td>25</td><td>原创，安卓手势导航</td></tr>
+        <tr><td><strong>obsidian-review-comments</strong></td><td>22</td><td>fork+重改，Obsidian 插件</td></tr>
+        <tr><td><strong>entp-skill</strong></td><td>11</td><td>原创，Agent 辩论 skill</td></tr>
+        <tr><td><strong>ssh-as-executable</strong></td><td>9</td><td>原创，Rust SSH 工具</td></tr>
+        <tr><td><strong>session-extract-skill</strong></td><td>5</td><td>原创，Agent session 提取</td></tr>
+        <tr><td><strong>ggwave-framing</strong></td><td>~5</td><td>原创，声波通信协议</td></tr>
+        <tr><td><strong>NARust-158</strong></td><td>4</td><td>原创，Rust NARS 实现</td></tr>
+        <tr><td><strong>termux-agent-top</strong></td><td>4</td><td>原创，Agent 监控</td></tr>
+      </table>
+    </div>
+
+    <p style="margin:1.5rem 0 1rem;color:var(--accent);font-weight:700;">2026 年 — 团队贡献（核心贡献者）</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>项目</th><th>贡献</th><th>说明</th></tr>
+        <tr><td><strong>exomind</strong> (exomind-team)</td><td>115+ PR, 540+ Issue</td><td>Focus Timer、Overlay Workbench、PTY 终端、Release 工程</td></tr>
+        <tr><td><strong>TouchAI</strong> (TouchAI-org, ⭐68)</td><td>1 合并 PR + 12 Issue</td><td>#142 feat(search)、bug 报告、功能请求</td></tr>
+        <tr><td><strong>OpenNARS-for-Applications</strong></td><td>9 合并 PR</td><td>Windows 构建脚本、NAL 改进</td></tr>
+        <tr><td><strong>openai/codex</strong></td><td>1 open PR</td><td>tmux truncation 修复</td></tr>
+        <tr><td><strong>BloopAI/vibe-kanban</strong></td><td>1 open PR</td><td>dev login 配置修复</td></tr>
+      </table>
+    </div>
+
+    <div class="insight">
+      <div class="label">关键洞察</div>
+      <p>读者需要「共同的已知项目」作为锚点。TouchAI (⭐68) 和 exomind 是读者借此了解你的入口——不是因为你做了多少 PR，而是因为你参与构建的产品本身有用户基础。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>1.4 活跃度的真相</h3>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-year">2020-2022</div>
+        <div class="timeline-desc">Flash 游戏、Python 小工具（起点，已停）</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2023-2024</div>
+        <div class="timeline-desc">NARS 多语言实现（深度投入，已冻结）</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2025</div>
+        <div class="timeline-desc">几乎空白</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2026</div>
+        <div class="timeline-desc">Agent 工具链 + 独立小工具 + ExoMind 团队贡献（当前活跃）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 二、冰山之下 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2 class="section-title">冰山之下：公开与私有的鸿沟</h2>
+  </div>
+
+  <div class="card">
+    <h3>2.1 私有仓库全景</h3>
+    <p>你有约 <strong>60 个私有仓库</strong>，比公开的 68 个还多。它们揭示了一个完全不同的你：</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>私有域</th><th>代表仓库</th><th>规模</th></tr>
+        <tr><td><strong>ExoMind 生态</strong></td><td>exomind-ts, exomind-model, exo-agents-core</td><td>大型系统</td></tr>
+        <tr><td><strong>理论框架</strong></td><td>aca-theory, channel-combinator-calculus</td><td>中型</td></tr>
+        <tr><td><strong>Agent 运行时</strong></td><td>AgentHive-RS, agentx-core, zeroclaw</td><td>大型</td></tr>
+        <tr><td><strong>个人生活系统</strong></td><td>life-series (26MB), ob-notes (174MB!)</td><td>巨大</td></tr>
+        <tr><td><strong>学术</strong></td><td>exomind-thesis-scnu2026 (102MB)</td><td>大型</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>2.2 life-series：你的数字花园</h3>
+      <p>Obsidian vault，通过 ObsidianGit 同步。26MB，每天多次提交，5 月创建以来从未间断。这是你最活跃的仓库，虽然完全私密。</p>
+      <p>这是一个<strong>个人生活日志/数字花园</strong>，是你内在世界的外化。</p>
+    </div>
+    <div class="card">
+      <h3>2.3 核心差异</h3>
+      <div class="table-wrap">
+        <table class="diff-table">
+          <tr><th>维度</th><th>公开</th><th>私有</th></tr>
+          <tr><td>叙事</td><td class="old">无</td><td class="new">有（ExoMind）</td></tr>
+          <tr><td>理论深度</td><td class="old">只有实现</td><td class="new">ACA、CCC、DAG523</td></tr>
+          <tr><td>系统性</td><td class="old">独立项目</td><td class="new">完整系统</td></tr>
+          <tr><td>个人维度</td><td class="old">几乎为零</td><td class="new">life-series、论文</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 三、网站的意图 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2 class="section-title">网站的意图</h2>
+  </div>
+
+  <div class="card" style="border-color:var(--accent-dim);">
+    <h3>3.0 为什么还没动：真实感</h3>
+    <p>网站不仅仅是展示各种作品，还是要展示<strong>制作作品的人</strong>——那些不能被 Agent 代替的地方。</p>
+    <p>Agent 可以批量生成产品、写代码、甚至写博客。但 Agent 不能：</p>
+    <ul>
+      <li>写出「十四年前，从朋友那儿弄到一个叫 ES文件浏览器 的东西」这样的起源故事</li>
+      <li>写出「像建设新中国一样建设自己」这样的自我反思</li>
+      <li>写出「人好像一下子变牛逼了，过一阵子又打回原形了」这样的诚实</li>
+      <li>写出「你不去想，就不会出现」这样的创造者哲学</li>
+      <li>写出「工具是水涨船高的水，而非船本身」这样的时代洞察</li>
+      <li>写出「曾经手敲的游戏依然可以打开，而如今的自己已经没了那种简单的快乐」这样的真实感受</li>
+    </ul>
+    <div class="insight">
+      <div class="label">核心洞察</div>
+      <p>这才是没有立马重构网站的原因——不是因为没有能力，而是因为还没想清楚「真实感」要怎么呈现。一个精心设计但没有灵魂的网站，不如一个粗糙但真实的「测试页面」。</p>
+    </div>
+    <p><strong>网站的核心不是项目，是人。项目是人的证据，不是人的替代品。</strong></p>
+    <p style="margin-top:1rem;">而「真实感」的哲学根基，在 life-series 042 里写得很清楚：</p>
+    <blockquote>
+      在「创造」的逻辑中，不会有立马能端到自己面前的东西，也未曾有过在社会分配中叫「不劳而获」的道理。你不去想，就不会出现。<br><br>
+      你，要在体验之后留下什么？是世界铭刻给你的一层美妙回忆，还是你撰刻给世界的一笔灵魂印记？使用一款软件，是因为它呈现给你效果很6，还是因为它出自你自己之手？
+    </blockquote>
+    <p style="margin-top:1rem;"><strong>这就是为什么网站不应该追求「精美」而应该追求「真实」</strong>——因为这个人的核心身份是「创造者」而非「体验者」。一个自己手搓的粗糙但真实的页面，比一个 AI 生成的精美但空洞的页面，更符合这个人的灵魂。</p>
+  </div>
+
+  <div class="card">
+    <h3>life-series：网站应该有的灵魂</h3>
+    <p>这些随笔才是不能被 Agent 生成的东西——真实的起源、真实的反思、真实的困惑：</p>
+
+    <p style="margin:1rem 0 0.5rem;color:var(--accent);font-weight:700;font-size:0.85rem;">创造者的哲学</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>随笔</th><th>核心洞察</th></tr>
+        <tr><td><strong>033 忆｜编程？</strong></td><td>从 Minecraft JS 模组到现在的完整起源——「不如我自己来！」</td></tr>
+        <tr><td><strong>042 思｜体验与创造</strong></td><td>「你不去想，就不会出现」「使用一款软件，是因为它出自你自己之手？」</td></tr>
+        <tr><td><strong>028 论｜创意友好的Agent时代</strong></td><td>「这可能是对喜欢点子、喜欢创意的人，最好的时代」</td></tr>
+      </table>
+    </div>
+
+    <p style="margin:1rem 0 0.5rem;color:var(--accent);font-weight:700;font-size:0.85rem;">自我建设的方法论</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>随笔</th><th>核心洞察</th></tr>
+        <tr><td><strong>021 论｜自我的中央报</strong></td><td>「生活日志，就是个人的中央报刊」「记录的过程是主要的，内容的质量是次要的」</td></tr>
+        <tr><td><strong>039 道｜意图-现状=问题</strong></td><td>思维框架：弄清意图 → 认识现状 → 定义问题 → 行动</td></tr>
+        <tr><td><strong>012 思｜写作5分钟，框架2小时</strong></td><td>「先做，然后观念开始转变，转变的新观念再产生新的做法」</td></tr>
+      </table>
+    </div>
+
+    <p style="margin:1rem 0 0.5rem;color:var(--accent);font-weight:700;font-size:0.85rem;">Agent 时代的人之本体</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>随笔</th><th>核心洞察</th></tr>
+        <tr><td><strong>020 研｜配了几年的环境，随手搓出的理论</strong></td><td>「人好像一下子变牛逼了，过一阵子又打回原形了——而这，是我们想要的吗？」</td></tr>
+        <tr><td><strong>022 道｜允许自己停下来</strong></td><td>「在外部工具消失后，剩下的人自己，自我内核，动机意志，这些同样会闪烁光芒。工具是水涨船高的水，而非船本身」</td></tr>
+        <tr><td><strong>043 忆｜渴望凝固的时空</strong></td><td>「曾经手敲的游戏依然可以打开，而如今的自己已经没了那种简单的快乐」</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>3.2 它不是什么</h3>
+      <ul>
+        <li>❌ <strong>不是简历/CV</strong> — 不是求职导向的技能清单</li>
+        <li>❌ <strong>不是项目列表</strong> — 不是 69 个仓库的索引</li>
+        <li>❌ <strong>不是技术博客</strong> — 不是教程和文章的集合</li>
+        <li>❌ <strong>不是产品官网</strong> — 不是 ExoMind 的营销页</li>
+        <li>❌ <strong>不是「测试页面」</strong> — 不是实验的垃圾场</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>3.3 它是什么</h3>
+      <ul>
+        <li>✅ <strong>是思考的外化</strong> — 网站是 life-series 的公开投影</li>
+        <li>✅ <strong>是探索的记录</strong> — 每个阶段对同一问题的不同角度</li>
+        <li>✅ <strong>是灵魂的投影</strong> — 展示「我在追问什么」</li>
+        <li>✅ <strong>是连接的接口</strong> — 让同频的人能找到你</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3.4 从「产品对齐」到「灵魂对齐」</h3>
+    <div class="table-wrap">
+      <table class="diff-table">
+        <tr><th>维度</th><th>旧模式（CV/产品对齐）</th><th>新模式（灵魂对齐）</th></tr>
+        <tr><td>核心问题</td><td class="old">我会什么？</td><td class="new">我在追问什么？</td></tr>
+        <tr><td>组织方式</td><td class="old">按项目/语言分类</td><td class="new">按问题/兴趣域组织</td></tr>
+        <tr><td>访客感受</td><td class="old">「这个人挺厉害」</td><td class="new">「这个人有意思」</td></tr>
+        <tr><td>更新动力</td><td class="old">有新项目才更新</td><td class="new">有新想法就更新</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 四、别人怎么做的 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2 class="section-title">别人怎么做的</h2>
+  </div>
+
+  <div class="card">
+    <h3>你关注的人的网站分析</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>人物</th><th>核心表达</th><th>启示</th></tr>
+        <tr><td><strong>jiaxiaogang</strong></td><td>「AGI·HELIX·ENTROPY」</td><td>用自创理论体系作为身份锚点</td></tr>
+        <tr><td><strong>3b1b</strong></td><td>「I make videos about math.」</td><td>当作品质量够高时，一句话就够了</td></tr>
+        <tr><td><strong>JimmyLv</strong></td><td>「想做产品，却误入程序世界爱上写作的摄影师」</td><td>身份错位比技术栈列表有趣 10 倍</td></tr>
+        <tr><td><strong>Roger-luo</strong></td><td>「Physicist in the day, developer at night」</td><td>两个身份不融合，可以并列</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>设计哲学分类学</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>类型</th><th>核心问题</th><th>代表</th><th>适合度</th></tr>
+        <tr><td><strong>数字花园</strong></td><td>「我怎么思考？」</td><td>Andy Matuschak</td><td>⭐⭐⭐ 最适合</td></tr>
+        <tr><td><strong>教学平台</strong></td><td>「我能解释清楚吗？」</td><td>Julia Evans</td><td>⭐⭐ 适合</td></tr>
+        <tr><td><strong>交互体验</strong></td><td>「我能构建它吗？」</td><td>Bruno Simon</td><td>⭐⭐ 适合</td></tr>
+        <tr><td><strong>公开学习</strong></td><td>「我在学什么？」</td><td>swyx</td><td>⭐⭐ 适合</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 五、展示策略 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <h2 class="section-title">展示策略：三层架构</h2>
+  </div>
+
+  <div class="card" style="text-align:center;padding:2rem;">
+    <pre style="text-align:left;display:inline-block;background:transparent;border:none;color:var(--text-muted);font-size:0.85rem;">
+┌─────────────────────────────────────────────────────────┐
+│  真实的人（life-series 随笔、起源故事、自我反思）       │  ← 灵魂
+│  不能被 Agent 生成的东西                                 │
+├─────────────────────────────────────────────────────────┤
+│  作品作为证据（exomind、TouchAI、NARS、Agent 工具）     │  ← 证据
+│  证明这个人真的在做那些事                               │
+├─────────────────────────────────────────────────────────┤
+│  技术实现（Vue、Rust、WASM、子应用）                    │  ← 载体
+│  让作品能被体验                                         │
+└─────────────────────────────────────────────────────────┘</pre>
+  </div>
+</div>
+
+<!-- 六、推荐方向 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <h2 class="section-title">推荐方向</h2>
+  </div>
+
+  <div class="card">
+    <h3>推荐路线：「数字花园 + 交互体验」混合法</h3>
+    <blockquote>
+      「如何让机器像人一样从经验中推理？」<br><br>
+      我是 ARCJ137442，一个用 Rust、Julia、TypeScript 探索非公理推理系统的开发者。<br>
+      这里是我的思考和作品。
+    </blockquote>
+    <p style="margin-top:1rem;">按「能力域」而非时间线组织：</p>
+    <pre>├── 推理系统（NARS 生态）—— 理论 + 多语言实现
+├── Agent 工具链（当前活跃）—— 工程能力
+├── 独立工具（OpenSwipe、ggwave 等）—— 创造力
+├── Web 实验场（这个网站本身）—— 展示能力
+└── 思考空间（从 life-series 提炼）—— 内在世界</pre>
+  </div>
+
+  <div class="card">
+    <h3>叙事结构</h3>
+    <blockquote>
+      <strong>白天</strong>，我在探索非公理推理——一种不依赖固定公理、能从经验中持续学习的 AI 范式。<br><br>
+      <strong>夜晚</strong>，我在构建 Agent 工具链——让 AI 助手更好地理解、记忆、协作。<br><br>
+      <strong>始终</strong>，我在追问一个问题：智能机器如何思考和工作？
+    </blockquote>
+  </div>
+</div>
+
+<!-- 七、技术演进 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <h2 class="section-title">技术演进方案</h2>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3>Phase 1</h3>
+      <p style="color:var(--green);font-weight:700;">最小改造（立即见效）</p>
+      <ul>
+        <li>重写 index.html 为有设计感的首页</li>
+        <li>添加统一的导航栏组件</li>
+        <li>子目录保持独立</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Phase 2</h3>
+      <p style="color:var(--orange);font-weight:700;">引入轻量框架</p>
+      <ul>
+        <li>主站用 Astro 或 Hugo</li>
+        <li>统一主题、导航、暗色模式</li>
+        <li>方便扩展博客/笔记</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Phase 3</h3>
+      <p style="color:var(--purple);font-weight:700;">数字花园架构</p>
+      <ul>
+        <li>Obsidian 笔记导出</li>
+        <li>子应用嵌入为交互式卡片</li>
+        <li>与 life-series 无缝衔接</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 八、核心结论 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">08</span>
+    <h2 class="section-title">核心结论</h2>
+  </div>
+
+  <div class="insight" style="border-color:var(--purple);">
+    <div class="label">一句话总结</div>
+    <p>你的公开 profile 是一个「开源开发者」的表象，但私有仓库揭示了你是一个「正在构建生命操作系统的人」。网站要做的，是让那个系统构建者的你，从公开作品中透出来，而不是把私有内容暴露出去。</p>
+  </div>
+
+  <div class="card">
+    <h3>关键行动项</h3>
+    <ol style="padding-left:1.2rem;color:var(--text-muted);">
+      <li><strong>回答「你的叙事是什么？」</strong> — 这个问题比「网站用什么框架」重要 100 倍</li>
+      <li><strong>从 Phase 1 开始</strong> — 重写首页，加入哲学内核和叙事</li>
+      <li><strong>清理噪音</strong> — 考虑 unstar/unfollow 那些纯 fork</li>
+      <li><strong>让 life-series 的思考透出来</strong> — 从私有日志中提炼公开文章</li>
+      <li><strong>统一技术栈</strong> — Vue 3 + Vite + Rust/WASM 已经是你的签名</li>
+    </ol>
+  </div>
+
+  <div class="card" style="text-align:center;border-color:var(--accent-dim);">
+    <blockquote style="border:none;background:transparent;font-size:1.2rem;">
+      你关注的人中，<strong>最有影响力的不是技术最强的，而是叙事最清晰的</strong>。<br><br>
+      你的叙事是什么？
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h3>从随笔中浮现的哲学框架</h3>
+    <p>life-series 的随笔不只是日记——它们构成了一个完整的思维体系：</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>框架</th><th>来源</th><th>表达</th></tr>
+        <tr><td><strong>创造 vs 体验</strong></td><td>042</td><td>「你不去想，就不会出现」—— 创造者的底层哲学</td></tr>
+        <tr><td><strong>意图-现状=问题</strong></td><td>039</td><td>弄清意图 → 认识现状 → 定义问题 → 行动</td></tr>
+        <tr><td><strong>中央报</strong></td><td>021</td><td>「记录的过程是主要的，内容的质量是次要的」</td></tr>
+        <tr><td><strong>工具与人</strong></td><td>022</td><td>「工具是水涨船高的水，而非船本身」</td></tr>
+        <tr><td><strong>先做再想</strong></td><td>012</td><td>「先做，然后观念开始转变」</td></tr>
+      </table>
+    </div>
+    <div class="insight">
+      <div class="label">最终洞察</div>
+      <p>这些框架不是从书本上学来的，而是从 Minecraft 模组、Flash 游戏、Agent 开发、作息紊乱、通宵编码的真实经历中长出来的。它们才是网站真正的「内容」——不是项目列表，不是技术博客，而是一个人如何思考、如何行动、如何在 Agent 时代保持「人」的证据。</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- end blueprint tab -->
+
+<!-- ==================== TAB 2: 简历对比 ==================== -->
+<div id="resume" class="tab-panel">
+
+<div class="hero">
+  <h1>2025 vs 2026 简历对比</h1>
+  <p class="subtitle">从黑客松简历到今天——一年间发生了什么，以及 2026 简历草稿</p>
+</div>
+
+<!-- 2025 简历 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2 class="section-title">2025 黑客松简历的核心叙事</h2>
+  </div>
+
+  <div class="card">
+    <blockquote>
+      「一个普通小镇成长起来、喜欢对现有状况展开场景想象，并乐于将有意思的想象带到现实中来的人」
+    </blockquote>
+    <blockquote>
+      「自己头脑中觉得有趣，然后想把它带到世界上看看」
+    </blockquote>
+    <blockquote>
+      「仅靠自娱自乐并不能真正给他人、给自己带来什么」
+    </blockquote>
+  </div>
+</div>
+
+<!-- 2025 vs 2026 对比 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2 class="section-title">2025 到 2026 的变化</h2>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="diff-table">
+        <tr><th>维度</th><th>2025 简历</th><th>2026 实际状态</th></tr>
+        <tr><td>身份</td><td class="old">「辅助者」</td><td class="new">exomind-team 核心贡献者（115 PR, 540 Issues）</td></tr>
+        <tr><td>NARS</td><td class="old">「品玩和研究」</td><td class="new">继续维护，但不再是唯一焦点</td></tr>
+        <tr><td>Agent</td><td class="old">未提及</td><td class="new">Agent 工具链开发者</td></tr>
+        <tr><td>团队协作</td><td class="old">「希望能作为辅助者」</td><td class="new">已经在 exomind-team 中深度协作</td></tr>
+        <tr><td>产品</td><td class="old">无</td><td class="new">参与 ExoMind 产品开发</td></tr>
+        <tr><td>开源贡献</td><td class="old">提过 PR（PikaParser.jl）</td><td class="new">opennars 9 PR, exomind 115 PR, codex PR</td></tr>
+        <tr><td>个人系统</td><td class="old">无</td><td class="new">life-series, ob-notes (174MB)</td></tr>
+      </table>
+    </div>
+
+    <div class="insight">
+      <div class="label">最大的变化</div>
+      <p>从「想成为辅助者」到「已经是核心贡献者」。从「自娱自乐」到「构建生命操作系统」。但公开 profile 没有变——GitHub 上仍然是「测试网站」和散装项目列表。</p>
+    </div>
+  </div>
+</div>
+
+<!-- 2026 简历草稿 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2 class="section-title">2026 简历草稿</h2>
+  </div>
+
+  <div class="card" style="border-color:var(--accent-dim);">
+    <h3 style="font-size:1.3rem;">ARCJ137442 / Argon</h3>
+    <blockquote>
+      从 Minecraft 模组到认知推理系统到 Agent 工具链——一个用代码探索「智能机器如何思考和工作」的人。
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h3>核心身份</h3>
+    <ul>
+      <li><strong>ExoMind 核心贡献者</strong> — 参与构建「生命成长助手」产品（115+ PR, 540+ Issues）</li>
+      <li><strong>NARS 生态构建者</strong> — 用 Rust/Julia/TypeScript 实现非公理推理系统的多语言工具链</li>
+      <li><strong>Agent 工具链开发者</strong> — 构建 Claude Code/Codex 的 session 提取、结构化辩论等 skill</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>技术栈</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>领域</th><th>语言/工具</th><th>深度</th></tr>
+        <tr><td><strong>系统编程</strong></td><td>Rust, WASM</td><td>深 — NARust-158, NAVM.rs</td></tr>
+        <tr><td><strong>科学计算</strong></td><td>Julia</td><td>深 — JuNarsese.jl (⭐5)</td></tr>
+        <tr><td><strong>前端</strong></td><td>TypeScript, Vue 3, Vite</td><td>中 — ExoMind Overlay</td></tr>
+        <tr><td><strong>移动/桌面</strong></td><td>Kotlin, Tauri</td><td>中 — OpenSwipe, TouchAI</td></tr>
+        <tr><td><strong>脚本/工具</strong></td><td>Python, Shell</td><td>中 — session-extract-skill</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>自我叙述</h3>
+    <p>小学时在 Minecraft PE 里写模组，初二开始用 Flash/ActionScript 写游戏，高中用 Python 写小工具，大学接触 Julia 和 Rust，从此走上了「用代码把想象中的画面带到世界上」的路。</p>
+    <p>2024 年前主要在做 NARS 的多语言实现。2025 年开始转向 Agent 工具链和产品开发，加入 exomind-team 参与「生命成长助手」的构建。</p>
+    <blockquote>
+      <strong>白天</strong>在做 ExoMind 产品开发，<strong>夜晚</strong>在探索 NARS 和 Agent 的交叉地带，<strong>始终</strong>在追问一个问题——智能机器如何从经验中学习和推理？
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h3>个人特质</h3>
+    <ul>
+      <li><strong>INTP</strong> — 内在逻辑驱动，善于从「觉得有趣」出发探索事物的潜能</li>
+      <li><strong>阶段性深度投入</strong> — 每个阶段选定一个方向做到「能跑起来」，然后转向下一个兴奋点</li>
+      <li><strong>「想象→实现」循环</strong> — 脑海中想象画面 → 自学积累方法 → 工程编码实现</li>
+      <li><strong>从自娱自乐到协作</strong> — 正在从「活在自己的世界中」走出来</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 叙事对比 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2 class="section-title">叙事对比</h2>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="diff-table">
+        <tr><th>维度</th><th>2025 叙事</th><th>2026 叙事</th></tr>
+        <tr><td>开头</td><td class="old">「一个普通小镇成长起来的人」</td><td class="new">「从 Minecraft 模组到认知推理系统到 Agent 工具链」</td></tr>
+        <tr><td>核心动机</td><td class="old">「觉得有趣，想带到世界上」</td><td class="new">「探索智能机器如何思考和工作」</td></tr>
+        <tr><td>技术定位</td><td class="old">列举语言</td><td class="new">按领域组织</td></tr>
+        <tr><td>团队协作</td><td class="old">「希望能作为辅助者」</td><td class="new">「ExoMind 核心贡献者」</td></tr>
+        <tr><td>弱点</td><td class="old">「沟通表达有弱点」</td><td class="new">「正在从自娱自乐走向协作」</td></tr>
+      </table>
+    </div>
+
+    <div class="insight">
+      <div class="label">唯一不变</div>
+      <p>仍然是那个「觉得有趣就去实现」的人。只是现在有趣的东西更大了——从 Minecraft 模组变成了生命操作系统。</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- end resume tab -->
+
+</main>
+
+<footer class="site-footer">
+  <p>本文档由多个并行调研任务综合生成 · 2026-06-17</p>
+  <p>仓库分析 · 提交活动分析 · 关注列表分析 · 组织贡献分析 · 公开/私有对比 · 设计哲学研究 · 中文开发者社区调研 · 子应用技术分析</p>
+</footer>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人网站翻新蓝图 — ARCJ137442</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=JetBrains+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN SYSTEM — 暗色系统构建者
+   ═══════════════════════════════════════════════ */
+:root {
+  --bg-deep: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #1a2332;
+  --bg-surface: #0f1520;
+  --bg-code: #0d1117;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-heading: #f1f5f9;
+  --accent-cyan: #22d3ee;
+  --accent-violet: #a78bfa;
+  --accent-emerald: #34d399;
+  --accent-rose: #fb7185;
+  --accent-amber: #fbbf24;
+  --border-subtle: rgba(148, 163, 184, 0.08);
+  --border-card: rgba(148, 163, 184, 0.12);
+  --glow-cyan: rgba(34, 211, 238, 0.15);
+  --glow-violet: rgba(167, 139, 250, 0.15);
+  --font-heading: 'Noto Serif SC', 'Georgia', serif;
+  --font-body: 'DM Sans', 'Noto Serif SC', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--bg-deep);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.75;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ 背景网格 ═══ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(148,163,184,0.03) 1px, transparent 1px),
+    linear-gradient(rgba(148,163,184,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══ 布局 ═══ */
+.wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 120px;
+}
+
+/* ═══ 导航 ═══ */
+.toc {
+  position: fixed;
+  top: 50%;
+  right: max(24px, calc((100vw - 960px) / 2 - 220px));
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.toc a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.toc a::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.toc a:hover, .toc a.active {
+  color: var(--accent-cyan);
+  background: var(--glow-cyan);
+}
+.toc a:hover::before, .toc a.active::before {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+@media (max-width: 1400px) {
+  .toc { display: none; }
+}
+
+/* ═══ Hero ═══ */
+.hero {
+  text-align: center;
+  padding: 80px 0 60px;
+  position: relative;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+}
+.hero h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  font-weight: 900;
+  color: var(--text-heading);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--text-heading) 0%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero .subtitle {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  font-style: italic;
+}
+
+/* ═══ 章节卡片 ═══ */
+.chapter {
+  margin-top: 56px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.chapter:hover {
+  border-color: rgba(148,163,184,0.2);
+}
+.chapter::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.chapter:nth-child(1)::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet)); }
+.chapter:nth-child(2)::before { background: linear-gradient(90deg, var(--accent-violet), var(--accent-rose)); }
+.chapter:nth-child(3)::before { background: linear-gradient(90deg, var(--accent-emerald), var(--accent-cyan)); }
+.chapter:nth-child(4)::before { background: linear-gradient(90deg, var(--accent-amber), var(--accent-rose)); }
+.chapter:nth-child(5)::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald)); }
+.chapter:nth-child(6)::before { background: linear-gradient(90deg, var(--accent-violet), var(--accent-amber)); }
+.chapter:nth-child(7)::before { background: linear-gradient(90deg, var(--accent-rose), var(--accent-violet)); }
+.chapter:nth-child(8)::before { background: linear-gradient(90deg, var(--accent-emerald), var(--accent-amber)); }
+
+.chapter h2 {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.chapter .chapter-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+  font-family: var(--font-mono);
+}
+
+/* ═══ 子章节 ═══ */
+.section {
+  margin-top: 32px;
+}
+.section h3 {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ═══ 段落和文本 ═══ */
+p {
+  margin-bottom: 14px;
+  color: var(--text-primary);
+}
+strong { color: var(--text-heading); font-weight: 700; }
+em { color: var(--accent-cyan); font-style: normal; font-weight: 500; }
+
+blockquote {
+  border-left: 3px solid var(--accent-violet);
+  padding: 14px 20px;
+  margin: 16px 0;
+  background: rgba(167, 139, 250, 0.06);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+blockquote p { margin-bottom: 8px; }
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ═══ 表格 ═══ */
+.table-wrap {
+  overflow-x: auto;
+  margin: 16px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-card);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+thead th {
+  background: var(--bg-surface);
+  color: var(--accent-cyan);
+  font-weight: 700;
+  text-align: left;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-card);
+}
+tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: rgba(148,163,184,0.03); }
+td code {
+  background: var(--bg-code);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--accent-emerald);
+}
+
+/* ═══ 代码块 ═══ */
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* ═══ 列表 ═══ */
+ul, ol {
+  padding-left: 24px;
+  margin: 10px 0 16px;
+}
+li {
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+li::marker {
+  color: var(--accent-violet);
+}
+
+/* ═══ 特殊组件 ═══ */
+.insight-box {
+  background: linear-gradient(135deg, rgba(34,211,238,0.08), rgba(167,139,250,0.08));
+  border: 1px solid rgba(34,211,238,0.2);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 20px 0;
+  position: relative;
+}
+.insight-box::before {
+  content: '💡';
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  font-size: 1.2rem;
+  background: var(--bg-card);
+  padding: 0 8px;
+}
+.insight-box p {
+  color: var(--text-heading);
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
+.warning-box {
+  background: linear-gradient(135deg, rgba(251,113,133,0.08), rgba(251,191,36,0.08));
+  border: 1px solid rgba(251,113,133,0.2);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 20px 0;
+  position: relative;
+}
+.warning-box::before {
+  content: '⚠️';
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  font-size: 1.2rem;
+  background: var(--bg-card);
+  padding: 0 8px;
+}
+
+.check-list {
+  list-style: none;
+  padding-left: 0;
+}
+.check-list li {
+  padding-left: 28px;
+  position: relative;
+}
+.check-list li::before {
+  position: absolute;
+  left: 0;
+  font-size: 0.9rem;
+}
+
+/* ═══ 三层架构图 ═══ */
+.arch-diagram {
+  background: var(--bg-code);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 20px 0;
+  text-align: center;
+}
+.arch-layer {
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin: 10px auto;
+  max-width: 680px;
+  position: relative;
+}
+.arch-layer.public {
+  background: rgba(34,211,238,0.06);
+  border-color: rgba(34,211,238,0.2);
+}
+.arch-layer.blend {
+  background: rgba(167,139,250,0.06);
+  border-color: rgba(167,139,250,0.2);
+}
+.arch-layer.private {
+  background: rgba(251,113,133,0.06);
+  border-color: rgba(251,113,133,0.2);
+}
+.arch-layer h4 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.arch-layer.public h4 { color: var(--accent-cyan); }
+.arch-layer.blend h4 { color: var(--accent-violet); }
+.arch-layer.private h4 { color: var(--accent-rose); }
+.arch-arrow {
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  margin: 4px 0;
+}
+
+/* ═══ 时间线 ═══ */
+.timeline {
+  position: relative;
+  padding-left: 28px;
+  margin: 16px 0;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-violet), var(--accent-rose));
+  border-radius: 2px;
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 16px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  border: 2px solid var(--bg-card);
+}
+.timeline-item .year {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+.timeline-item .desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* ═══ 对比卡片 ═══ */
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+@media (max-width: 640px) { .comparison { grid-template-columns: 1fr; } }
+.comp-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.comp-card h4 {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.comp-card.old h4 { color: var(--accent-rose); }
+.comp-card.new h4 { color: var(--accent-emerald); }
+.comp-card ul { padding-left: 18px; margin: 0; }
+.comp-card li { font-size: 0.88rem; margin-bottom: 4px; }
+
+/* ═══ 核心问题大字 ═══ */
+.big-question {
+  text-align: center;
+  padding: 40px 20px;
+  margin: 24px 0;
+  background: radial-gradient(ellipse at center, rgba(34,211,238,0.06) 0%, transparent 70%);
+  border-radius: var(--radius-lg);
+}
+.big-question p {
+  font-family: var(--font-heading);
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 700;
+  color: var(--text-heading);
+  line-height: 1.5;
+}
+.big-question .accent { color: var(--accent-cyan); }
+
+/* ═══ 底部 ═══ */
+.footer {
+  text-align: center;
+  padding-top: 60px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+.footer a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+}
+
+/* ═══ 淡入动画 ═══ */
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ═══ 响应式 ═══ */
+@media (max-width: 768px) {
+  .wrapper { padding: 24px 16px 80px; }
+  .chapter { padding: 28px 20px; }
+  .hero { padding: 48px 0 40px; }
+  table { font-size: 0.82rem; }
+  thead th, tbody td { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="toc" aria-label="章节目录">
+  <a href="#ch1">一、现状诊断</a>
+  <a href="#ch2">二、冰山之下</a>
+  <a href="#ch3">三、网站的意图</a>
+  <a href="#ch4">四、别人怎么做的</a>
+  <a href="#ch5">五、展示策略</a>
+  <a href="#ch6">六、推荐方向</a>
+  <a href="#ch7">七、技术演进</a>
+  <a href="#ch8">八、核心结论</a>
+</nav>
+
+<div class="wrapper">
+
+<!-- ═══ HERO ═══ -->
+<header class="hero fade-in">
+  <h1>个人网站翻新蓝图</h1>
+  <p class="subtitle">一份关于「ARCJ137442.github.io 应该成为什么」的完整调研与哲学框架</p>
+</header>
+
+<!-- ═══ 一、现状诊断 ═══ -->
+<article class="chapter fade-in" id="ch1">
+  <h2>一、现状诊断</h2>
+  <div class="chapter-subtitle">current-state / diagnosis</div>
+
+  <div class="section">
+    <h3>1.1 当前网站是什么</h3>
+    <p>一个 741 字节的 <code>index.html</code>，标题为「测试网站」，列出四个分类链接（小工具、H5 测试、Flash 测试、NARS），CSS 仅两条规则（h1 紫色 + body 居中），JS 仅一行 <code>console.info</code>。</p>
+    <div class="insight-box">
+      <p><strong>本质上</strong>：这不是一个网站，是一个文件索引。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.2 公开 Profile 的真实构成</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>类别</th><th>数量</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>原创公开仓库</td><td><strong>48</strong></td><td>你自己的代码</td></tr>
+          <tr><td>纯 fork（零个人提交）</td><td>20</td><td>存档/书签，不是你的工作</td></tr>
+          <tr><td>fork + 有个人提交</td><td>5</td><td>在他人项目上做了实质性修改</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="warning-box">
+      <p><strong>那 20 个纯 fork 在你的 profile 上制造了噪音。</strong> <code>ai-cli-mcp</code>、<code>clawfeed</code>、<code>TouchAI</code>、<code>project-graph</code> 这些——你没有写过一行代码，只是 fork 了放着。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.3 真正的活跃作品（2026 年）</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>项目</th><th>提交数</th><th>类型</th></tr></thead>
+        <tbody>
+          <tr><td>anymate-cc</td><td>27</td><td>原创，动画/协调工具</td></tr>
+          <tr><td>OpenSwipe</td><td>25</td><td>原创，安卓手势导航</td></tr>
+          <tr><td>obsidian-review-comments</td><td>22</td><td>fork+重改，Obsidian 插件</td></tr>
+          <tr><td>entp-skill</td><td>11</td><td>原创，Agent 辩论 skill</td></tr>
+          <tr><td>ssh-as-executable</td><td>9</td><td>原创，Rust SSH 工具</td></tr>
+          <tr><td>session-extract-skill</td><td>5</td><td>原创，Agent session 提取</td></tr>
+          <tr><td>ggwave-framing</td><td>~5</td><td>原创，声波通信协议</td></tr>
+          <tr><td>NARust-158</td><td>4</td><td>原创，Rust NARS 实现</td></tr>
+          <tr><td>termux-agent-top</td><td>4</td><td>原创，Agent 监控</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.4 活跃度的真相</h3>
+    <p>你的 69 个仓库不是「持续做一件事」的记录，而是<strong>阶段性深度投入某个领域，然后转向</strong>的轨迹：</p>
+    <div class="timeline">
+      <div class="timeline-item"><span class="year">2020-2022</span><div class="desc">Flash 游戏、Python 小工具（起点，已停）</div></div>
+      <div class="timeline-item"><span class="year">2023-2024</span><div class="desc">NARS 多语言实现（深度投入，已冻结）</div></div>
+      <div class="timeline-item"><span class="year">2025</span><div class="desc">几乎空白</div></div>
+      <div class="timeline-item"><span class="year">2026</span><div class="desc">Agent 工具链 + 独立小工具（当前活跃）</div></div>
+    </div>
+  </div>
+</article>
+
+<!-- ═══ 二、冰山之下 ═══ -->
+<article class="chapter fade-in" id="ch2">
+  <h2>二、冰山之下：公开与私有的鸿沟</h2>
+  <div class="chapter-subtitle">private / the-gap-below-the-surface</div>
+
+  <div class="section">
+    <h3>2.1 私有仓库全景</h3>
+    <p>你有约 <strong>60 个私有仓库</strong>，比公开的 68 个还多。它们揭示了一个完全不同的你：</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>私有域</th><th>代表仓库</th><th>规模</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ExoMind 生态</strong></td><td>exomind-ts, exomind-model, exo-agents-core</td><td>大型系统</td></tr>
+          <tr><td><strong>理论框架</strong></td><td>aca-theory, channel-combinator-calculus, mpts</td><td>中型</td></tr>
+          <tr><td><strong>Agent 运行时</strong></td><td>AgentHive-RS, agentx-core, zeroclaw</td><td>大型</td></tr>
+          <tr><td><strong>Skill 生态</strong></td><td>skill-show, skill-popup-ask 等 8 个</td><td>小型</td></tr>
+          <tr><td><strong>个人生活系统</strong></td><td>life-series (26MB), ob-notes (174MB!)</td><td>巨大</td></tr>
+          <tr><td><strong>学术</strong></td><td>exomind-thesis-scnu2026 (102MB)</td><td>大型</td></tr>
+          <tr><td><strong>NARS 深度</strong></td><td>nars-law-reasoning, OpenNARS-304-ts</td><td>中型</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>2.2 life-series：你的数字花园</h3>
+    <p><strong>life-series</strong> 是一个 Obsidian vault，通过 ObsidianGit 同步到私有仓库。26MB，每天多次提交，5 月创建以来从未间断。这是你最活跃的仓库，虽然完全私密。</p>
+    <p>这是一个<strong>个人生活日志/数字花园</strong>，是你内在世界的外化。</p>
+  </div>
+
+  <div class="section">
+    <h3>2.3 外部贡献</h3>
+    <p>你不只是在自己的仓库里工作：</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>组织</th><th>贡献</th></tr></thead>
+        <tbody>
+          <tr><td><strong>exomind-team</strong></td><td>9 个 open PR + 10 个 closed PR + 10 个 issue</td></tr>
+          <tr><td><strong>opennars</strong></td><td>9 个合并 PR，包括代码改进和 Windows 构建脚本</td></tr>
+          <tr><td><strong>TouchAI-org</strong></td><td>功能 PR 被合并</td></tr>
+          <tr><td><strong>openai/codex</strong></td><td>1 个 open PR</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>2.4 核心差异</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>维度</th><th>公开</th><th>私有</th></tr></thead>
+        <tbody>
+          <tr><td><strong>叙事</strong></td><td>无（散装项目列表）</td><td>有（ExoMind = 外心生命系统）</td></tr>
+          <tr><td><strong>理论深度</strong></td><td>只有实现，没有理论</td><td>ACA理论、CCC、DAG523、MPTS</td></tr>
+          <tr><td><strong>系统性</strong></td><td>每个项目独立</td><td>ExoMind 生态是一个完整系统</td></tr>
+          <tr><td><strong>Agent</strong></td><td>小型 skill 工具</td><td>完整的 Agent 运行时</td></tr>
+          <tr><td><strong>个人维度</strong></td><td>几乎为零</td><td>life-series、ob-notes、论文</td></tr>
+          <tr><td><strong>哲学</strong></td><td>无</td><td>「自主认知体」「信道组合子演算」</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insight-box">
+      <p><strong>最震撼的发现：你公开 profile 上完全没有提到 ExoMind 这个产品。</strong> 你的个人 profile 上看不到任何与之相关的公开内容。</p>
+    </div>
+  </div>
+</article>
+
+<!-- ═══ 三、网站的意图 ═══ -->
+<article class="chapter fade-in" id="ch3">
+  <h2>三、网站的意图</h2>
+  <div class="chapter-subtitle">intent / what-it-is-and-is-not</div>
+
+  <div class="section">
+    <h3>3.1 它要做什么</h3>
+    <div class="big-question">
+      <p>回答「<span class="accent">ARCJ137442 是怎样一个人？</span>」<br>——而不是「ARCJ137442 会什么语言」。</p>
+    </div>
+    <blockquote>
+      <p>一个<strong>阶段性深度投入</strong>的探索者——从 Flash 游戏到认知推理系统到 AI Agent 基础设施，每个阶段都做到了「能跑起来」的程度，然后转向下一个让他兴奋的问题。</p>
+    </blockquote>
+    <blockquote>
+      <p>一个<strong>正在构建生命操作系统的人</strong>——从理论（ACA、CCC）到系统（ExoMind）到应用（法律推理、语音 IME）到个人生活（life-series、ob-notes），你在用代码探索「智能机器如何思考和工作」这个问题。</p>
+    </blockquote>
+  </div>
+
+  <div class="section">
+    <h3>3.2 它不是什么</h3>
+    <ul class="check-list">
+      <li>❌ <strong>不是简历/CV</strong> —— 不是求职导向的技能清单</li>
+      <li>❌ <strong>不是项目列表</strong> —— 不是 69 个仓库的索引</li>
+      <li>❌ <strong>不是技术博客</strong> —— 不是教程和文章的集合</li>
+      <li>❌ <strong>不是产品官网</strong> —— 不是 ExoMind 的营销页</li>
+      <li>❌ <strong>不是「测试页面」</strong> —— 不是实验的垃圾场</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>3.3 它不仅仅是什么</h3>
+    <ul class="check-list">
+      <li>✅ <strong>是思考的外化</strong> —— 你在 life-series 里持续思考，网站是那些思考的公开投影</li>
+      <li>✅ <strong>是探索的记录</strong> —— 每个阶段的工作都是对同一个问题的不同角度探索</li>
+      <li>✅ <strong>是灵魂的投影</strong> —— 不是展示「我做了什么」，而是展示「我在追问什么」</li>
+      <li>✅ <strong>是连接的接口</strong> —— 让 NARS 社区、Agent 开发者、同频的人能找到你</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>3.4 从「产品对齐」到「灵魂对齐」</h3>
+    <div class="comparison">
+      <div class="comp-card old">
+        <h4>旧模式：CV / 产品对齐</h4>
+        <ul>
+          <li>核心问题：我会什么？</li>
+          <li>组织方式：按项目/语言分类</li>
+          <li>时间感：最新项目在前</li>
+          <li>访客感受：「这个人挺厉害」</li>
+          <li>更新动力：有新项目才更新</li>
+        </ul>
+      </div>
+      <div class="comp-card new">
+        <h4>新模式：灵魂对齐</h4>
+        <ul>
+          <li>核心问题：我在追问什么？</li>
+          <li>组织方式：按问题/兴趣域组织</li>
+          <li>时间感：问题的演进历程</li>
+          <li>访客感受：「这个人有意思」</li>
+          <li>更新动力：有新想法就更新</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</article>
+
+<!-- ═══ 四、别人怎么做的 ═══ -->
+<article class="chapter fade-in" id="ch4">
+  <h2>四、别人怎么做的</h2>
+  <div class="chapter-subtitle">reference / how-others-do-it</div>
+
+  <div class="section">
+    <h3>4.1 你关注的人的网站分析</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>人物</th><th>核心表达</th><th>启示</th></tr></thead>
+        <tbody>
+          <tr><td><strong>jiaxiaogang</strong></td><td>「AGI·HELIX·ENTROPY」</td><td>用自创理论体系作为身份锚点</td></tr>
+          <tr><td><strong>3b1b</strong></td><td>「I make videos about math.」</td><td>当作品质量够高时，一句话就够了</td></tr>
+          <tr><td><strong>JimmyLv</strong></td><td>「想做产品，却误入程序世界爱上写作的摄影师」</td><td>身份错位比技术栈列表有趣 10 倍</td></tr>
+          <tr><td><strong>Roger-luo</strong></td><td>「Physicist in the day, developer at night」</td><td>两个身份不融合，可以并列</td></tr>
+          <tr><td><strong>L-M-Sherlock</strong></td><td>记忆研究 + FSRS</td><td>让数据说话</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insight-box">
+      <p><strong>模式</strong>：最有力的个人网站都有一个「哲学内核」——不是「我会什么」，而是「我在探索什么问题，为什么」。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>4.2 中文开发者社区的模式</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>原型</th><th>代表</th><th>特征</th></tr></thead>
+        <tbody>
+          <tr><td><strong>谦逊实践者</strong></td><td>阮一峰、张鑫旭</td><td>让内容量说话，避免夸张</td></tr>
+          <tr><td><strong>热情创造者</strong></td><td>DIYgod、antfu</td><td>情感语言，创造性自我描述</td></tr>
+          <tr><td><strong>深思哲学者</strong></td><td>lepture.com、lutaonan.com</td><td>技术内容混合个人价值观</td></tr>
+          <tr><td><strong>学术转工程者</strong></td><td>Roger-luo、Karpathy</td><td>职业时间线 + 学术成就</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>最适合你的原型</strong>：「学术转工程者」+「热情创造者」。</p>
+  </div>
+
+  <div class="section">
+    <h3>4.3 设计哲学分类学</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>类型</th><th>核心问题</th><th>代表</th><th>适合度</th></tr></thead>
+        <tbody>
+          <tr><td>知识中枢</td><td>「我知道什么？」</td><td>Derek Sivers</td><td>⭐ 部分适合</td></tr>
+          <tr><td>教学平台</td><td>「我能解释清楚吗？」</td><td>Julia Evans</td><td>⭐⭐ 适合</td></tr>
+          <tr><td><strong>数字花园</strong></td><td>「我怎么思考？」</td><td>Andy Matuschak</td><td>⭐⭐⭐ 最适合</td></tr>
+          <tr><td>公开学习</td><td>「我在学什么？」</td><td>swyx</td><td>⭐⭐ 适合</td></tr>
+          <tr><td>交互体验</td><td>「我能构建它吗？」</td><td>Bruno Simon</td><td>⭐⭐ 适合</td></tr>
+          <tr><td>实验场</td><td>「我能尝试什么？」</td><td>Braydon Coyer</td><td>⭐⭐ 适合</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</article>
+
+<!-- ═══ 五、展示策略 ═══ -->
+<article class="chapter fade-in" id="ch5">
+  <h2>五、展示策略：三层架构</h2>
+  <div class="chapter-subtitle">strategy / three-layer-architecture</div>
+
+  <div class="section">
+    <h3>5.1 直接展示层（公开、可提及）</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>内容</th><th>来源</th><th>为什么值得展示</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Narsese-structure-illustrator+</strong></td><td>公开仓库</td><td>交互式 WASM 演示，视觉冲击力强</td></tr>
+          <tr><td><strong>TWayFoil WASM</strong></td><td>公开仓库</td><td>概念巧妙，有交互性</td></tr>
+          <tr><td><strong>NARust-158</strong></td><td>公开仓库</td><td>Rust 实现 NARS，技术深度</td></tr>
+          <tr><td><strong>JuNarsese.jl</strong></td><td>公开仓库 (⭐5)</td><td>研究生态证明</td></tr>
+          <tr><td><strong>session-extract-skill</strong></td><td>公开仓库</td><td>当前活跃方向</td></tr>
+          <tr><td><strong>OpenSwipe</strong></td><td>公开仓库</td><td>有实际用户</td></tr>
+          <tr><td><strong>exomind 产品</strong></td><td>exomind-team 公开仓库</td><td>最有说服力的作品</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>5.2 融入设计层（不直接提及，但体现）</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>私有内容</th><th>融入方式</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ACA 理论</strong></td><td>作为网站信息架构的骨架——页面组织本身就在体现「全环定向图」思维</td></tr>
+          <tr><td><strong>CCC 信道组合子演算</strong></td><td>作为「探索的问题」的理论深度暗示</td></tr>
+          <tr><td><strong>life-series</strong></td><td>作为博客/花园内容的来源——从私有日志中提炼公开文章</td></tr>
+          <tr><td><strong>ExoMind 系统架构</strong></td><td>作为网站系统性的来源——让访客感受到你在构建「生命操作系统」</td></tr>
+          <tr><td><strong>nars-law-reasoning</strong></td><td>在 NARS 板块提到「法律推理等应用场景」而不展开</td></tr>
+          <tr><td><strong>Agent 运行时</strong></td><td>作为 Agent 工具链叙事的底层支撑</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>5.3 三层全景图</h3>
+    <div class="arch-diagram">
+      <div class="arch-layer public">
+        <h4>▲ 公开展示层</h4>
+        <p style="font-size:0.88rem;">NARS 演示 · 独立工具 · Agent 工具链 · exomind 产品</p>
+      </div>
+      <div class="arch-arrow">↕</div>
+      <div class="arch-layer blend">
+        <h4>◆ 融入设计层（不直接提及）</h4>
+        <p style="font-size:0.88rem;">ACA理论→信息架构 · life-series→博客 · CCC→理论深度 · Agent运行时→叙事深度</p>
+      </div>
+      <div class="arch-arrow">↕</div>
+      <div class="arch-layer private">
+        <h4>● 私有基础层（完全不提及）</h4>
+        <p style="font-size:0.88rem;">外心生命系统 · 理论框架 · Agent 运行时 · 个人生活系统 · 学术研究</p>
+      </div>
+    </div>
+  </div>
+</article>
+
+<!-- ═══ 六、推荐方向 ═══ -->
+<article class="chapter fade-in" id="ch6">
+  <h2>六、推荐方向</h2>
+  <div class="chapter-subtitle">direction / digital-garden-plus-interactive</div>
+
+  <div class="section">
+    <h3>6.1 推荐路线：「数字花园 + 交互体验」混合法</h3>
+    <blockquote>
+      <p>「如何让机器像人一样从经验中推理？」</p>
+      <p>我是 ARCJ137442，一个用 Rust、Julia、TypeScript 探索非公理推理系统的开发者。这里是我的思考和作品。</p>
+    </blockquote>
+    <p>主体按「能力域」而非时间线组织：</p>
+    <pre><code>├── 推理系统（NARS 生态）—— 理论 + 多语言实现
+├── Agent 工具链（当前活跃）—— 工程能力
+├── 独立工具（OpenSwipe、ggwave 等）—— 创造力
+├── Web 实验场（这个网站本身）—— 展示能力
+└── 思考空间（从 life-series 提炼）—— 内在世界</code></pre>
+    <p>每个域标注「<em>活跃 / 冻结 / 历史</em>」状态，让访客一眼看出你当前在做什么、曾经做过什么。</p>
+  </div>
+
+  <div class="section">
+    <h3>6.2 叙事结构</h3>
+    <blockquote>
+      <p><strong>白天</strong>，我在探索非公理推理——一种不依赖固定公理、能从经验中持续学习的 AI 范式。</p>
+      <p><strong>夜晚</strong>，我在构建 Agent 工具链——让 AI 助手更好地理解、记忆、协作。</p>
+      <p><strong>始终</strong>，我在追问一个问题：智能机器如何思考和工作？</p>
+    </blockquote>
+  </div>
+
+  <div class="section">
+    <h3>6.3 语言策略</h3>
+    <p>采用 Pattern C（活跃双语切换）：技术内容英文（NARS 是国际学术项目）、个人内容中文（life-series 提炼）、导航双语、RSS feed 提供。</p>
+  </div>
+
+  <div class="section">
+    <h3>6.4 视觉语言</h3>
+    <ul>
+      <li><strong>设计风格</strong>：极简 + 暗色模式 + 卡片布局</li>
+      <li><strong>技术栈</strong>：Vue 3 + Vite + Rust/WASM（与现有子应用统一）</li>
+      <li><strong>交互元素</strong>：Narsese 演示作为首页的「活作品」</li>
+      <li><strong>CSS 变量</strong>：统一的主题系统（现有子应用各自为政）</li>
+    </ul>
+  </div>
+</article>
+
+<!-- ═══ 七、技术演进 ═══ -->
+<article class="chapter fade-in" id="ch7">
+  <h2>七、技术演进方案</h2>
+  <div class="chapter-subtitle">technical / evolution-plan</div>
+
+  <div class="section">
+    <h3>7.1 现有技术状态</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>维度</th><th>现状</th></tr></thead>
+        <tbody>
+          <tr><td>构建方式</td><td>零构建，纯静态部署</td></tr>
+          <tr><td>CSS</td><td>只有 2 条规则</td></tr>
+          <tr><td>JS</td><td>仅 <code>console.info</code></td></tr>
+          <tr><td>响应式</td><td>无</td></tr>
+          <tr><td>主题/暗色模式</td><td>无</td></tr>
+          <tr><td>导航</td><td>纯 <code>&lt;a&gt;</code> 标签</td></tr>
+          <tr><td>SEO/Meta</td><td>仅 <code>&lt;title&gt;测试网站&lt;/title&gt;</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>7.2 子应用质量评估</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>子应用</th><th>框架</th><th>状态</th><th>价值</th></tr></thead>
+        <tbody>
+          <tr><td><strong>TWayFoil</strong></td><td>Vue + WASM + Vite</td><td>可用</td><td>⭐⭐⭐</td></tr>
+          <tr><td><strong>Narsese-structure-illustrator+</strong></td><td>Vue + Vite</td><td>可用</td><td>⭐⭐⭐</td></tr>
+          <tr><td><strong>language-utils</strong></td><td>Vue SPA</td><td>活跃</td><td>⭐⭐</td></tr>
+          <tr><td><strong>OpenNARS-158-online</strong></td><td>WASM</td><td>可用</td><td>⭐⭐</td></tr>
+          <tr><td>JuNarsese-demo</td><td>原生 JS</td><td>老旧</td><td>⭐</td></tr>
+          <tr><td>Narsese-structure-illustrator</td><td>原生 JS</td><td>被+版替代</td><td>⭐ 可废弃</td></tr>
+          <tr><td>demo-158/demo-o</td><td>WASM</td><td>重复</td><td>⭐ 与 OpenNARS 重叠</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>7.3 演进路线</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>阶段</th><th>内容</th><th>优点</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Phase 1</strong><br>最小改造</td>
+            <td>重写 <code>index.html</code> 为有设计感的首页；添加统一导航栏；子目录保持独立</td>
+            <td>零构建成本，改动最小</td>
+          </tr>
+          <tr>
+            <td><strong>Phase 2</strong><br>轻量框架</td>
+            <td>主站用 Astro/Hugo 生成；子应用继续 Vite 构建；统一主题和暗色模式</td>
+            <td>有模板系统，方便扩展</td>
+          </tr>
+          <tr>
+            <td><strong>Phase 3</strong><br>数字花园</td>
+            <td>主站 + Obsidian 笔记导出（Quartz）；子应用嵌入为交互式卡片</td>
+            <td>与 life-series 工作流无缝衔接</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>7.4 代码质量问题</h3>
+    <p><strong>需要修复：</strong></p>
+    <ol>
+      <li>demo-158/demo-158-dev/demo-o 使用 <code>eval</code> devtool — 生产环境应切换到 <code>source-map</code></li>
+      <li>缺失的字体文件（<code>IBMPlexMono-Thin.ttf</code>）</li>
+      <li>OpenNARS-158-online 依赖外部 CDN（CheerpJ）</li>
+      <li>language-utils 的自动提交模式应迁移到 CI/CD</li>
+    </ol>
+    <p><strong>可以改进：</strong></p>
+    <ol>
+      <li>所有子应用缺少 <code>&lt;meta&gt;</code> 描述和 Open Graph 标签</li>
+      <li>子应用之间没有统一的导航</li>
+      <li>demo-158 可以废弃（功能被 demo-158-dev 完全覆盖）</li>
+      <li>Narsese-structure-illustrator 可以重定向到 + 版</li>
+    </ol>
+  </div>
+</article>
+
+<!-- ═══ 八、核心结论 ═══ -->
+<article class="chapter fade-in" id="ch8">
+  <h2>八、核心结论</h2>
+  <div class="chapter-subtitle">conclusion / the-core-insight</div>
+
+  <div class="section">
+    <h3>一句话总结</h3>
+    <blockquote>
+      <p>你的公开 profile 是一个「开源开发者」的表象，但私有仓库揭示了你是一个「正在构建生命操作系统的人」。网站要做的，是<strong>让那个系统构建者的你，从公开作品中透出来，而不是把私有内容暴露出去</strong>。</p>
+    </blockquote>
+  </div>
+
+  <div class="section">
+    <h3>关键行动项</h3>
+    <ol>
+      <li><strong>回答「你的叙事是什么？」</strong> —— 这个问题比「网站用什么框架」重要 100 倍</li>
+      <li><strong>从 Phase 1 开始</strong> —— 重写首页，加入哲学内核和叙事</li>
+      <li><strong>清理噪音</strong> —— 考虑 unstar/unfollow 那些纯 fork</li>
+      <li><strong>让 life-series 的思考透出来</strong> —— 从私有日志中提炼公开文章</li>
+      <li><strong>统一技术栈</strong> —— Vue 3 + Vite + Rust/WASM 已经是你的签名</li>
+    </ol>
+  </div>
+
+  <div class="section">
+    <h3>最终洞察</h3>
+    <p>你关注的人中，<strong>最有影响力的不是技术最强的，而是叙事最清晰的</strong>。</p>
+    <ul>
+      <li>jiaxiaogang 的技术不一定比你强，但他用「HELIX·ENTROPY」三个字就让人记住了他</li>
+      <li>3b1b 的数学不一定比你深，但「I make videos about math」这句话值 40K followers</li>
+      <li>JimmyLv 的代码不一定比你好，但「误入程序世界的摄影师」这个身份错位让人想点进去</li>
+    </ul>
+    <div class="big-question">
+      <p><span class="accent">你的叙事是什么？</span></p>
+    </div>
+  </div>
+</article>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <p>本文档由多个并行调研任务综合生成</p>
+  <p>仓库分析 · 提交活动分析 · 关注列表分析 · 组织贡献分析 · 公开/私有对比 · 设计哲学研究 · 中文开发者社区调研 · 子应用技术分析</p>
+  <p style="margin-top:16px;"><a href="https://github.com/ARCJ137442">ARCJ137442</a> / 2026</p>
+</footer>
+
+</div>
+
+<script>
+// 淡入动画
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// TOC 高亮
+const tocLinks = document.querySelectorAll('.toc a');
+const chapters = document.querySelectorAll('.chapter');
+const tocObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+chapters.forEach(ch => tocObserver.observe(ch));
+</script>
+</body>
+</html>
