@@ -70,6 +70,7 @@ button { color: inherit; font: inherit; }
 .label-left { left: 0; top: 28%; }
 .label-right { bottom: 20%; right: 0; }
 .label-icon { align-items: center; background: rgba(135, 222, 201, .18); border-radius: 50%; color: var(--mint); display: inline-flex; height: 22px; justify-content: center; width: 22px; }
+.label-icon svg { display: block; height: 14px; width: 14px; }
 .visual-foot { bottom: 7px; color: #89a69a; font-size: .72rem; letter-spacing: .04em; position: absolute; right: 8px; }
 
 .section { margin: 0 auto; max-width: 1240px; padding: clamp(68px, 9vw, 112px) clamp(22px, 5vw, 70px); }
@@ -124,7 +125,6 @@ details p { color: var(--muted); font-size: .88rem; line-height: 1.65; margin: 1
 .body-copy .eyebrow { color: #8a6cc2; }
 .body-copy > p:not(.eyebrow) { color: var(--muted); line-height: 1.8; }
 .vision-note { align-items: start; background: #eeeafa; border-left: 3px solid var(--lilac); border-radius: 0 12px 12px 0; color: #514477 !important; display: flex; font-size: .9rem; gap: 10px; padding: 13px 16px; }
-.vision-note span { color: #8065bd; font-size: 1.15rem; }
 .organ-map { background: #e8eee7; border: 1px solid #d7e0d6; border-radius: 22px; height: 340px; overflow: hidden; position: relative; }
 .organ-lines { height: 100%; inset: 0; position: absolute; width: 100%; }
 .organ-lines path { fill: none; stroke: #91afa1; stroke-dasharray: 5 6; stroke-width: 1.6; }
@@ -133,8 +133,7 @@ details p { color: var(--muted); font-size: .88rem; line-height: 1.65; margin: 1
 .organ-core span { font-size: 1.18rem; font-weight: 800; letter-spacing: -.04em; line-height: .95; }
 .organ-core small { color: #c1d0c7; font-size: .7rem; margin-top: 8px; }
 .organ { background: var(--card); border: 1px solid #c7d7ce; box-shadow: 0 8px 20px rgba(16,35,31,.06); height: 74px; width: 74px; }
-.organ span { color: var(--mint-dark); font-size: 1.3rem; font-weight: 800; }
-.organ small { color: var(--muted); font-size: .68rem; }
+.organ small { color: var(--mint-dark); font-size: .74rem; font-weight: 720; }
 .organ-battery { left: 12%; top: 10%; }
 .organ-sensor { right: 12%; top: 10%; }
 .organ-audio { bottom: 10%; left: 12%; }
@@ -148,8 +147,7 @@ details p { color: var(--muted); font-size: .88rem; line-height: 1.65; margin: 1
 .status-pending .status-tag { color: #966348; }
 .status-card h3 { font-size: 1.2rem; letter-spacing: -.03em; margin: 0; }
 .status-card p { color: var(--muted); font-size: .91rem; line-height: 1.72; margin: 10px 0 0; }
-.release-note { align-items: center; background: #fff8f2; border: 1px solid #f0ddd0; border-radius: 12px; color: #725744; display: flex; gap: 11px; line-height: 1.6; margin: 18px 0 0; padding: 13px 16px; }
-.release-mark { align-items: center; background: #f4e2d6; border-radius: 50%; color: #8b5c41; display: inline-flex; flex: 0 0 23px; font-weight: 800; height: 23px; justify-content: center; width: 23px; }
+.release-note { background: #fff8f2; border: 1px solid #f0ddd0; border-radius: 12px; color: #725744; line-height: 1.6; margin: 18px 0 0; padding: 13px 16px; }
 
 .ecosystem-section { padding-top: 55px; }
 .ecosystem-grid { display: grid; gap: 12px; grid-template-columns: repeat(5, 1fr); }
