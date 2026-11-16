@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="wav2api-build" content="fa203c70ed52">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090c">
+  <title>wav2api · 模型协议播放器</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./app.css?build=fa203c70ed52">
+  <script src="./boot.js?build=fa203c70ed52"></script>
+</head>
+<body>
+<svg class="icon-defs" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="i-logo" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="2.2"/>
+      <path d="M12 3.8v2.1M12 18.1v2.1M3.8 12h2.1M18.1 12h2.1"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.2 19.5 12 7 19.8Z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 4.5h3.2v15H8zM12.8 4.5H16v15h-3.2z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="2.2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 5.5 9.5 12 19 18.5Z" fill="currentColor" stroke="none"/><path d="M5.5 5v14"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 5.5 14.5 12 5 18.5Z" fill="currentColor" stroke="none"/><path d="M18.5 5v14"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5h3.2L12 5.5v13L7.2 14.5H4Z"/><path d="M15.4 8.6a4.8 4.8 0 0 1 0 6.8"/><path d="M18.2 5.8a8.8 8.8 0 0 1 0 12.4"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.2L12 5.5v13L7.2 14.5H4Z"/><path d="m16 9 5 6M21 9l-5 6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 13.4a7.7 7.7 0 0 0 0-2.8l2-1.5-2-3.4-2.4 1a8 8 0 0 0-2.4-1.4L14 2.8h-4l-.4 2.5A8 8 0 0 0 7.2 6.7l-2.4-1-2 3.4 2 1.5a7.7 7.7 0 0 0 0 2.8l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.4 1.4l.4 2.5h4l.4-2.5a8 8 0 0 0 2.4-1.4l2.4 1 2-3.4Z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20.4 11.4a8.5 8.5 0 1 1-2.3-6.2"/><path d="M20.6 4.2v6h-6"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3"/></symbol>
+    <symbol id="i-repeat-one" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3"/><text x="12" y="15" text-anchor="middle" font-size="9" fill="currentColor" stroke="none">1</text></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 5h3l12 14h3m-4-4 4 4-4 4M3 19h3l4-5m4-4 4-5h3m-4-4 4 4-4 4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6.1L4.7 18.6A2 2 0 0 0 6.4 21h11.2a2 2 0 0 0 1.7-2.4L14 9.1V3"/><path d="M7.3 15.2h9.4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m20 6.5-10.6 11L4 12"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m8.5 5.5 6.8 6.5-6.8 6.5"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.3a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v8.4a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12H6Z"/><path d="M13 3.5v5h5"/><path d="M9.2 14.2h5.6M9.2 17.2h4"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/><path d="M9.5 3.5v3M14.5 3.5v3M9.5 17.5v3M14.5 17.5v3M3.5 9.5h3M3.5 14.5h3M17.5 9.5h3M17.5 14.5h3"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8.2 8-4.2 4 4.2 4M15.8 8l4.2 4-4.2 4M13.5 5.5l-3 13"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2.2l1.7-5.2L9.7 17 12 7.8l2.3 8.8 2.1-11L18.3 12H21"/></symbol>
+    <symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M7.7 7.7a6.1 6.1 0 0 0 0 8.6M16.3 7.7a6.1 6.1 0 0 1 0 8.6M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/></symbol>
+    <symbol id="i-gate" viewBox="0 0 24 24"><path d="M4 20V8.5L12 4l8 4.5V20"/><path d="M8 20v-6.5h8V20M8 9.5h.1M12 9.5h.1M16 9.5h.1"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><rect x="5" y="2.8" width="14" height="18.4" rx="2.4"/><circle cx="12" cy="14.2" r="4.1"/><circle cx="12" cy="7.4" r="1.1"/></symbol>
+    <symbol id="i-buffer" viewBox="0 0 24 24"><path d="M4 7.5h16M4 12h16M4 16.5h10"/><path d="M17.5 16.5v3.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 21 20H3Z"/><path d="M12 9v4.5M12 17h.01"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="3.5"/><path d="m10.5 13 8-8M16 7.5l2 2M18.5 5l2 2"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6.5L14 18l2.2-6H21"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="wav2api 首页">
+      <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+      <span class="brand-text"><b>wav2api</b><small>MODEL-PROTOCOL PLAYER</small></span>
+    </a>
+    <div class="top-actions">
+      <div class="route-switch" role="group" aria-label="播放路线">
+        <span class="route-glider" aria-hidden="true"></span>
+        <button type="button" class="route-btn" data-route="direct" title="浏览器直接请求 Provider">直连</button>
+        <button type="button" class="route-btn" data-route="magpie" title="请求经过 Magpie 网关">Magpie</button>
+      </div>
+      <button type="button" class="conn" id="connBtn" title="连接状态，点击打开设置">
+        <i class="conn-dot" id="connDot"></i><span id="connText">连接中…</span>
+      </button>
+      <button type="button" class="icon-btn" id="settingsBtn" aria-label="打开设置">
+        <svg class="icon"><use href="#i-settings"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main-row">
+    <section class="panel deck" id="deck" aria-label="唱盘">
+      <div class="panel-head">
+        <span class="eyebrow">DECK A</span>
+        <span class="state-chip" id="deckState" role="status" aria-live="polite">STANDBY</span>
+      </div>
+
+      <div class="turntable">
+        <div class="platter-glow" aria-hidden="true"></div>
+        <div class="record-stage">
+        <div class="vinyl" id="vinyl" aria-hidden="true">
+          <div class="vinyl-grooves"></div>
+          <div class="vinyl-sheen"></div>
+          <div class="label" id="label"><div class="label-art" id="labelArt"></div><div class="label-hole"></div></div>
+        </div>
+        <canvas class="ring" id="ring" aria-hidden="true"></canvas>
+        <svg class="tonearm" id="tonearm" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <linearGradient id="stylusMetal" x1="0" x2="1"><stop stop-color="#4c5560"/><stop offset=".38" stop-color="#e6edf5"/><stop offset=".6" stop-color="#8f9aa6"/><stop offset="1" stop-color="#3f4853"/></linearGradient>
+            <linearGradient id="stylusHead" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#cfd7e0"/><stop offset=".6" stop-color="#56606b"/><stop offset="1" stop-color="#2b323a"/></linearGradient>
+            <radialGradient id="stylusBase" cx="35%" cy="30%"><stop stop-color="#78838f"/><stop offset=".65" stop-color="#303a45"/><stop offset="1" stop-color="#111820"/></radialGradient>
+          </defs>
+          <circle cx="89" cy="9" r="5.8" fill="url(#stylusBase)" stroke="#ffffff30" stroke-width=".3"/>
+          <g class="tonearm-assembly">
+            <circle cx="89" cy="9" r="2.1" fill="#10151b" stroke="#ffffff40" stroke-width=".35"/>
+            <rect x="88.25" y="9" width="1.5" height="65" rx=".7" fill="url(#stylusMetal)"/>
+            <path d="M85.6 70.5H92.4L92.4 78.3Q92.4 80.2 90.7 80.2H87.3Q85.6 80.2 85.6 78.3Z" fill="url(#stylusHead)" stroke="#ffffff40" stroke-width=".3"/>
+            <rect x="88" y="79" width="2" height="3" rx=".25" fill="#e8c07a"/>
+            <circle id="needleContact" cx="89" cy="82" r=".12" fill="transparent"/>
+          </g>
+        </svg>
+        </div>
+      </div>
+
+      <div class="deck-meta">
+        <h2 class="deck-title" id="deckTitle">未选择曲目</h2>
+        <p class="deck-artist" id="deckArtist">从右侧曲库选一首，或按播放</p>
+        <div class="badges" id="formatBadges"><span class="badge">等待音频格式</span></div>
+      </div>
+
+      <div class="transport">
+        <div class="transport-main">
+          <button type="button" class="icon-btn lg" id="prevBtn" aria-label="上一首"><svg class="icon"><use href="#i-prev"/></svg></button>
+          <button type="button" class="play-btn" id="playBtn" aria-label="播放" data-mode="play">
+            <span class="play-icon"><svg class="icon"><use href="#i-play"/></svg></span>
+            <span class="pause-icon"><svg class="icon"><use href="#i-pause"/></svg></span>
+            <span class="play-ring" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="icon-btn lg" id="stopBtn" aria-label="停止"><svg class="icon"><use href="#i-stop"/></svg></button>
+          <button type="button" class="icon-btn lg" id="nextBtn" aria-label="下一首"><svg class="icon"><use href="#i-next"/></svg></button>
+        </div>
+        <div class="volume">
+          <button type="button" class="icon-btn" id="muteBtn" aria-label="静音"><svg class="icon"><use href="#i-volume"/></svg></button>
+          <input type="range" id="volume" min="0" max="1" step="0.01" value="0.85" aria-label="音量">
+        </div>
+      </div>
+      <div class="playback-modes" id="playbackModes" role="group" aria-label="播放模式">
+        <button type="button" data-mode="loop" aria-pressed="true" title="循环播放当前曲库"><svg class="icon" aria-hidden="true"><use href="#i-repeat"/></svg> 循环</button>
+        <button type="button" data-mode="single" aria-pressed="false" title="单曲循环"><svg class="icon" aria-hidden="true"><use href="#i-repeat-one"/></svg> 单曲</button>
+        <button type="button" data-mode="shuffle" aria-pressed="false" title="随机播放，避免紧邻重复"><svg class="icon" aria-hidden="true"><use href="#i-shuffle"/></svg> 随机</button>
+      </div>
+      <div class="speed-control">
+        <label for="speed">速度 / 音调</label>
+        <input type="range" id="speed" min="0.5" max="2" step="0.05" value="1" aria-label="播放速度与音调">
+        <output id="speedValue" for="speed">1.00×</output>
+        <button type="button" id="speedReset" title="恢复原速">1×</button>
+      </div>
+      <div class="speed-control chunk-control">
+        <label for="chunkLimit" title="下一次播放或定位生效；限制每个事件的 PCM 数据大小">区块上限</label>
+        <input type="range" id="chunkLimit" min="0" max="8" step="1" value="3" aria-label="单次音频区块上限，下一次请求生效">
+        <output id="chunkValue" for="chunkLimit" title="默认约 500 ms 音频；下次播放或定位生效">默认</output>
+      </div>
+      <div class="control-note">区块设置于下次播放或定位生效</div>
+      <div class="deck-foot">
+        <span class="mono" id="deckHint">WEB AUDIO · 等待时钟</span>
+        <span class="dot-sep"></span>
+        <span class="mono">s16le / base64</span>
+      </div>
+    </section>
+
+    <section class="panel now" aria-label="正在播放">
+      <div id="smartGroups" class="smart-groups" aria-label="智能选择播放"></div>
+      <div class="panel-head">
+        <span class="eyebrow">NOW STREAMING</span>
+        <span class="live-pill" id="livePill"><i></i><span id="liveText">STANDBY</span></span>
+      </div>
+
+      <h1 class="now-title" id="nowTitle">选一首，按下播放</h1>
+      <div class="now-artist" id="nowArtist">它看起来像播放器，背地里在请求聊天补全。</div>
+      <div class="path-row" title="曲目相对路径">
+        <svg class="icon"><use href="#i-folder"/></svg>
+        <span class="mono" id="nowPath">—</span>
+      </div>
+      <div class="now-badges" id="nowBadges"></div>
+
+      <div class="error-box" id="errorBox" hidden>
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <div class="error-copy"><b>播放失败</b><p id="errorText"></p></div>
+        <button type="button" class="btn small" id="retryBtn">重试</button>
+      </div>
+
+      <div class="seek-block">
+        <div class="seek-times">
+          <span class="time mono" id="timeNow">00:00</span>
+          <span class="seek-buffer-label mono" id="bufferLabel">缓冲 0.0s</span>
+          <span class="time mono" id="timeTotal">--:--</span>
+        </div>
+        <div class="seek" id="seek">
+          <div class="seek-rail"></div>
+          <div class="seek-buffer" id="seekBuffer"></div>
+          <div class="seek-played" id="seekPlayed"></div>
+          <div class="seek-thumb" id="seekThumb"></div>
+          <div class="seek-tip mono" id="seekTip">00:00</div>
+          <input type="range" id="seekRange" min="0" max="1" step="0.01" value="0" aria-label="播放进度">
+        </div>
+      </div>
+
+      <div class="scope-wrap">
+        <div class="scope-head"><span class="eyebrow">PCM WAVEFORM <span class="spectrum-key">/ SPECTRUM</span></span><span class="mono dim" id="scopeState">NO SIGNAL</span></div>
+        <canvas class="scope" id="scope" aria-hidden="true"></canvas>
+      </div>
+
+      <div class="meter-row">
+        <span class="eyebrow">LEVEL</span>
+        <div class="meter" aria-hidden="true"><i id="levelBar"></i><b id="levelPeak"></b></div>
+        <span class="mono level-val" id="levelVal">-∞ dB</span>
+      </div>
+
+      <div class="stats">
+        <div><span>HTTP</span><b id="statHttp">—</b></div>
+        <div><span>FORMAT</span><b id="statFormat">—</b></div>
+        <div><span>CHUNKS</span><b id="statChunks">0</b></div>
+        <div><span>BUFFER</span><b id="statBuffer">0.0s</b></div>
+        <div><span>PCM RATE</span><b id="statRate">—</b></div>
+      </div>
+    </section>
+
+    <aside class="panel library" aria-label="曲库">
+      <div class="panel-head">
+        <div>
+          <span class="eyebrow">CATALOG</span>
+          <h2 class="lib-title">曲库 <span class="count" id="libCount">—</span></h2>
+        </div>
+        <button type="button" class="icon-btn" id="refreshBtn" aria-label="刷新曲库"><svg class="icon"><use href="#i-refresh"/></svg></button>
+      </div>
+
+      <div class="search-box">
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input id="search" type="search" placeholder="搜索标题、作者或路径…" autocomplete="off" spellcheck="false" aria-label="搜索曲目">
+        <kbd>/</kbd>
+      </div>
+
+      <div class="chips" role="group" aria-label="筛选曲目">
+        <button type="button" class="chip is-active" data-filter="audio">仅音频协议 <span id="chipAudio">0</span></button>
+        <button type="button" class="chip" data-filter="passed">试音通过 <span id="chipPassed">0</span></button>
+        <button type="button" class="chip" data-filter="all">全部模型 <span id="chipAll">0</span></button>
+      </div>
+
+      <div class="testbar">
+        <button type="button" class="btn small" id="testAllBtn" title="发一次 probe:true 的聊天补全；收到 audio.format + 一块 PCM 才算通过">
+          <svg class="icon"><use href="#i-flask"/></svg><span id="testAllText">试音全部</span>
+        </button>
+        <div class="test-progress" aria-hidden="true"><i id="testProgress"></i></div>
+        <span class="mono test-status" id="testStatus" role="status">未试音</span>
+      </div>
+
+      <div class="track-list" id="trackList">
+        <div class="skeleton">正在拉取 /v1/models…</div>
+      </div>
+
+      <div class="lib-foot">
+        <span id="libFoot">—</span>
+        <button type="button" class="link-btn" id="moreBtn" hidden>显示更多</button>
+      </div>
+    </aside>
+  </main>
+
+  <section class="panel signal" id="signal" aria-label="信号链">
+    <div class="signal-head">
+      <div class="signal-title-wrap">
+        <span class="eyebrow">SIGNAL PATH</span>
+        <h2 class="signal-title">它背地里在聊天</h2>
+      </div>
+      <div class="signal-actions">
+        <span class="mono signal-route" id="signalRoute">—</span>
+        <button type="button" class="btn ghost" id="revealBtn" aria-expanded="false" aria-controls="reveal">
+          <svg class="icon"><use href="#i-code"/></svg><span id="revealText">拆开看看</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="chain" id="chain">
+      <button type="button" class="node" data-node="file" title="曲目文件">
+        <span class="node-icon"><svg class="icon"><use href="#i-file"/></svg></span>
+        <span class="node-copy"><span class="node-label">FILE</span><b class="node-value" id="nodeFile">—</b></span>
+        <i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="decode" title="Provider 把文件解码成 s16le PCM">
+        <span class="node-icon"><svg class="icon"><use href="#i-cpu"/></svg></span>
+        <span class="node-copy"><span class="node-label">DECODE</span><b class="node-value" id="nodeDecode">等待</b></span>
+        <i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="base64" title="PCM 变成 base64，塞进聊天补全的 content">
+        <span class="node-icon"><svg class="icon"><use href="#i-code"/></svg></span>
+        <span class="node-copy"><span class="node-label">BASE64</span><b class="node-value" id="nodeBase64">等待</b></span>
+        <i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="sse" title="每块音频是一个 SSE data 帧">
+        <span class="node-icon"><svg class="icon"><use href="#i-radio"/></svg></span>
+        <span class="node-copy"><span class="node-label">SSE</span><b class="node-value" id="nodeSse">0 帧</b></span>
+        <i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="gateway" title="直连 Provider，或经过 Magpie 网关">
+        <span class="node-icon"><svg class="icon"><use href="#i-gate"/></svg></span>
+        <span class="node-copy"><span class="node-label">GATEWAY</span><b class="node-value" id="nodeGateway">—</b></span>
+        <i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="bandwidth" title="近一秒实际接收的 SSE 响应体速率，包含 base64 和事件文本，不含 HTTP/TLS 开销">
+        <span class="node-icon"><svg class="icon"><use href="#i-activity"/></svg></span>
+        <span class="node-copy"><span class="node-label">BANDWIDTH</span><b class="node-value" id="nodeBandwidth">0 kbps</b></span><i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="buffer" title="已排进 AudioContext 时钟、还没播到的音频">
+        <span class="node-icon"><svg class="icon"><use href="#i-buffer"/></svg></span>
+        <span class="node-copy"><span class="node-label">BUFFER</span><b class="node-value" id="nodeBuffer">0.0s</b></span>
+        <i class="node-dot"></i>
+      </button>
+      <span class="connector" aria-hidden="true"></span>
+      <button type="button" class="node" data-node="speaker" title="Web Audio 输出">
+        <span class="node-icon"><svg class="icon"><use href="#i-speaker"/></svg></span>
+        <span class="node-copy"><span class="node-label">SPEAKER</span><b class="node-value" id="nodeSpeaker">静音</b></span>
+        <i class="node-dot"></i>
+      </button>
+    </div>
+
+    <div class="reveal" id="reveal" hidden>
+      <div class="reveal-top">
+        <div class="tabs" role="tablist" aria-label="信号链细节">
+          <button type="button" class="tab is-active" data-tab="request" role="tab" aria-selected="true">请求</button>
+          <button type="button" class="tab" data-tab="sse" role="tab" aria-selected="false">SSE 帧</button>
+          <button type="button" class="tab" data-tab="pcm" role="tab" aria-selected="false">PCM</button>
+          <button type="button" class="tab" data-tab="metrics" role="tab" aria-selected="false">指标</button>
+        </div>
+        <button type="button" class="icon-btn" id="revealClose" aria-label="收起细节"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+
+      <div class="tab-panel" data-panel="request" role="tabpanel">
+        <div class="code-head">
+          <span class="mono" id="reqLine">POST —</span>
+          <button type="button" class="mini-btn" id="copyRequest"><svg class="icon"><use href="#i-copy"/></svg>复制</button>
+        </div>
+        <pre class="code" id="rawRequest">等待第一次播放…</pre>
+        <p class="note">model 不是 URL，是曲目 id。播放指令藏在 user message 里；Magpie 只是把它当成一次普通的聊天补全转发。</p>
+      </div>
+
+      <div class="tab-panel" data-panel="sse" role="tabpanel" hidden>
+        <div class="sse-grid">
+          <div>
+            <div class="code-head"><span class="mono">最近 12 帧</span><span class="mono dim" id="sseCount">0</span></div>
+            <div class="frame-list" id="frameList"><p class="note">还没有帧。</p></div>
+          </div>
+          <div>
+            <div class="code-head"><span class="mono">最后一帧（截断）</span></div>
+            <pre class="code small" id="rawEvent">—</pre>
+          </div>
+        </div>
+        <p class="note">每帧是 <span class="mono">data: {choices[].delta.content}</span>，content 里是 base64。0.5 秒的立体声 PCM 会变成 117,600 个字符。</p>
+      </div>
+
+      <div class="tab-panel" data-panel="pcm" role="tabpanel" hidden>
+        <div class="pcm-grid">
+          <div>
+            <div class="code-head"><span class="mono">交错采样</span></div>
+            <div class="pcm-diagram" id="pcmDiagram" aria-label="s16le 交错采样示意">
+              <span class="samp l">L</span><span class="samp r">R</span><span class="samp l">L</span><span class="samp r">R</span><span class="samp l">L</span><span class="samp r">R</span><span class="dots">…</span>
+            </div>
+            <p class="pcm-caption">每声道 16 bit 小端；L/R 交替。Web Audio 收到后拆成两个 <span class="mono">Float32Array</span>。</p>
+            <div class="code-head"><span class="mono">最后一块的头部字节</span></div>
+            <pre class="code small" id="pcmHex">—</pre>
+          </div>
+          <div class="metric-grid">
+            <div><span>采样率</span><b id="pcmRate">—</b></div>
+            <div><span>声道</span><b id="pcmCh">—</b></div>
+            <div><span>位深</span><b>16 bit</b></div>
+            <div><span>每块音频</span><b id="pcmChunkDur">—</b></div>
+            <div><span>每块字节</span><b id="pcmChunkBytes">—</b></div>
+            <div><span>base64 / 块</span><b id="pcmB64">—</b></div>
+            <div><span>PCM 码率</span><b id="pcmRateKbps">—</b></div>
+            <div><span>base64 膨胀</span><b>+33.3%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="metrics" role="tabpanel" hidden>
+        <div class="metrics-grid">
+          <div class="metric-grid">
+            <div><span>SSE 事件</span><b id="mEvents">0</b></div>
+            <div><span>音频块</span><b id="mChunks">0</b></div>
+            <div><span>base64 字符</span><b id="mB64">0</b></div>
+            <div><span>PCM 字节</span><b id="mPcm">0</b></div>
+            <div><span>首帧延迟</span><b id="mFormat">—</b></div>
+            <div><span>首块出声</span><b id="mAudio">—</b></div>
+            <div><span>欠载次数</span><b id="mUnder">0</b></div>
+            <div><span>HTTP</span><b id="mHttp">—</b></div>
+          </div>
+          <div class="spark-wrap">
+            <div class="code-head"><span class="mono">缓冲前瞻</span><span class="mono dim" id="mBuffer">0.0s</span></div>
+            <canvas id="bufferSpark" class="spark" aria-hidden="true"></canvas>
+            <p class="note">已排进时钟、还没播到的秒数。低于 0.2s 时，下一块若晚到就会听见空档。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>wav2api <span class="dim">·</span> 两个极简二进制 <span class="dim">·</span> 一条模型协议</span>
+    <span class="proto mono">POST /v1/chat/completions → data:{choices[].delta.content} → s16le → AudioContext</span>
+    <span class="mono dim" id="version">v0.2.0</span>
+  </footer>
+</div>
+
+<dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
+  <form class="settings-card" id="connectionForm">
+    <div class="settings-head">
+      <div><span class="eyebrow">CONNECTION</span><h2 id="settingsTitle">连接设置</h2></div>
+      <button type="button" class="icon-btn" id="settingsClose" aria-label="关闭设置"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+
+    <div class="field">
+      <label>播放路线</label>
+      <div class="seg" id="settingsRoute" role="group" aria-label="播放路线">
+        <button type="button" data-route="direct">直连 Provider</button>
+        <button type="button" data-route="magpie">经 Magpie</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="playBase">播放端点</label>
+      <input id="playBase" spellcheck="false" autocomplete="off">
+      <p class="hint">直连：<span class="mono">/catalog/v1</span> · 经 Magpie：<span class="mono">/gateway/v1</span></p>
+    </div>
+
+    <div class="field">
+      <label for="catalogBase">曲库端点 <span class="dim">（标签、封面、时长）</span></label>
+      <input id="catalogBase" spellcheck="false" autocomplete="off">
+      <p class="hint">播放经 Magpie 时，曲库仍直接读 Provider；换成别的地址也可以。</p>
+    </div>
+
+    <label class="check"><input type="checkbox" id="localNetworkAccess"> 连接的是本地网络服务（家庭网 / EasyTier）</label>
+    <p class="hint">用于 HTTPS 播放器连接内网服务。首次连接请点“测试连接”并允许浏览器访问本地网络；内网端点也必须使用 HTTPS。</p>
+
+    <div class="field">
+      <label for="localBridgeOrigin">PC 内网 HTTPS 地址</label>
+      <div class="key-row">
+        <input id="localBridgeOrigin" type="url" spellcheck="false" autocomplete="off" placeholder="https://你的PC内网DNS:3443">
+        <button type="button" class="mini-btn" id="useLocalBridge">填入端点</button>
+      </div>
+      <p class="hint">填写主机地址即可；播放器会自动设置 Magpie 与曲库路径。</p>
+    </div>
+
+    <div class="field">
+      <label for="keyInput">网关密钥</label>
+      <div class="key-row">
+        <input id="keyInput" type="text" autocomplete="off" spellcheck="false" placeholder="直连留空；经 Magpie 填 gateway key">
+        <button type="button" class="mini-btn" id="toggleKey">显示</button>
+      </div>
+      <p class="hint">只在经 Magpie 时需要。密钥不会写进页面、日志或请求详情。</p>
+    </div>
+
+    <label class="check"><input type="checkbox" id="rememberKey"> 记住密钥（本机 localStorage）</label>
+
+    <div class="settings-actions">
+      <button type="button" class="btn ghost" id="useDefaultEndpoints">使用本站默认地址</button>
+      <button type="button" class="btn ghost" id="loadDevKey"><svg class="icon"><use href="#i-key"/></svg>读取本地开发密钥</button>
+      <button type="button" class="btn ghost" id="testConn"><svg class="icon"><use href="#i-activity"/></svg>测试连接</button>
+      <button type="button" class="btn" id="saveSettings">保存并重连</button>
+    </div>
+    <div class="settings-status mono" id="settingsStatus" role="status"></div>
+  </form>
+</dialog>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+<script type="module" src="./app.js?build=fa203c70ed52"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "wav2api player",
+  "short_name": "wav2api",
+  "description": "Play audio carried as base64 PCM inside an OpenAI-compatible chat stream.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
