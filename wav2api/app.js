@@ -1,5 +1,5 @@
-import { defaultConnections, migrateConnectionPrefs } from './connection-settings.js?build=fa203c70ed52';
-import { nextTrackIndex, waveformLightFactor, initialLight, lightAt } from './playback-policy.js?build=fa203c70ed52';
+import { defaultConnections, migrateConnectionPrefs } from './connection-settings.js?build=3ef553be2f30';
+import { nextTrackIndex, waveformLightFactor, initialLight, lightAt } from './playback-policy.js?build=3ef553be2f30';
 // wav2api player — the page. The Rust/WASM module owns fetch + Web Audio;
 // everything below owns layout, state projection and the "拆开看看" reveal.
 
@@ -22,7 +22,7 @@ import init, {
   wav2api_level,
   wav2api_waveform,
   wav2api_probe,
-} from './pkg/wav2api_player.js?build=fa203c70ed52';
+} from './pkg/wav2api_player.js?build=3ef553be2f30';
 
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -311,13 +311,18 @@ async function fetchModels(base, key, { signal, localNetworkAccess = S.localNetw
     if (!r.ok) {
       let text = '';
       try { text = (await r.text()).slice(0, 300); } catch { /* ignore */ }
-      const short = r.status === 401 ? '需要网关密钥' : `HTTP ${r.status}`;
+      const htmlError = /^\s*(?:<!doctype\s+html|<html\b)/i.test(text);
+      const missingSameOriginApi = r.status === 404 && originOf(base) === location.origin && htmlError;
+      const short = r.status === 401 ? '需要网关密钥'
+        : missingSameOriginApi ? '等待连接本地服务' : `HTTP ${r.status}`;
       return {
         ok: false, ms,
         error: {
           status: r.status,
           short,
-          message: `${short} · ${url}${text ? `\n${text}` : ''}`,
+          message: missingSameOriginApi
+            ? `播放器已加载，尚未连接音频服务。请打开连接设置，填写 PC 的 HTTPS 内网地址并点击“测试连接”。\n${url}`
+            : `${short} · ${url}${text && !htmlError ? `\n${text}` : ''}`,
         },
       };
     }
@@ -2298,7 +2303,7 @@ function restoreSelection() {
 
 async function boot() {
   try {
-    await init({ module_or_path: new URL('./pkg/wav2api_player_bg.wasm?build=fa203c70ed52', import.meta.url) });
+    await init({ module_or_path: new URL('./pkg/wav2api_player_bg.wasm?build=3ef553be2f30', import.meta.url) });
   } catch (e) {
     window.wav2apiBoot?.fail(`WASM 加载失败：${e?.message || e}`);
     return;
