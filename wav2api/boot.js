@@ -11,6 +11,10 @@
     try {
       const url = new URL(value, location.href);
       const version = url.searchParams.get('build');
+      if (['http:', 'https:'].includes(url.protocol)) {
+        const port = url.port ? `:${url.port}` : '';
+        return `${url.protocol}//[redacted-host]${port}${url.pathname}${version ? `?build=${encodeURIComponent(version)}` : ''}`;
+      }
       url.username = url.password = url.hash = url.search = '';
       if (version) url.searchParams.set('build', version);
       return url.href;
@@ -19,6 +23,10 @@
   const redact = (value) => String(value)
     .replace(/Bearer\s+[^\s"']+/gi, 'Bearer [redacted]')
     .replace(/([?&](?:key|token|api_key|secret)=)[^\s&#"']+/gi, '$1[redacted]')
+    .replace(/https?:\/\/[^\s"'<>]+/gi, '[redacted address]')
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, '[redacted host]')
+    .replace(/\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g, '[redacted host]')
+    .replace(/[A-Za-z]:[\\/][^\s"'<>]+/g, '[redacted path]')
     .replace(/\b(?:sk-|ghp_|gho_)[A-Za-z0-9_-]{12,}/g, '[redacted]');
   const report = () => {
     let player;
@@ -28,23 +36,27 @@
         state: snapshot.state, position: snapshot.position, buffered: snapshot.buffered,
         speed: snapshot.speed, retryAttempt: snapshot.retry_attempt, retryInMs: snapshot.retry_in_ms,
         reconnects: snapshot.reconnects, httpStatus: snapshot.http_status, chunks: snapshot.chunks,
-        wireBytes: snapshot.wire_bytes, session: snapshot.session_id, route: snapshot.page?.route,
+        wireBytes: snapshot.wire_bytes, hasSession: Boolean(snapshot.session_id), route: snapshot.page?.route,
         endpoint: safeURL(snapshot.page?.base || ''),
+        error: redact(snapshot.error || ''),
       };
     } catch { /* The module may not have started. */ }
-    return redact(JSON.stringify({
+    return JSON.stringify({
       application: 'wav2api', build, capturedAt: new Date().toISOString(),
       page: safeURL(location.href), ready, secureContext: window.isSecureContext,
       userAgent: navigator.userAgent, online: navigator.onLine,
       viewport: { width: innerWidth, height: innerHeight, pixelRatio: devicePixelRatio },
       serviceWorker: navigator.serviceWorker?.controller?.scriptURL
         ? safeURL(navigator.serviceWorker.controller.scriptURL) : null,
-      errors, player,
+      errors: errors.map(({ at, message: errorMessage, file, line, column, stack }) => ({
+        at, message: redact(errorMessage), file: file ? safeURL(file) : undefined,
+        line, column, stack: stack ? redact(stack) : undefined,
+      })), player,
       assets: performance.getEntriesByType('resource')
-        .filter((entry) => /\/(app\.(?:js|css)|boot\.js|playback-policy\.js|connection-settings\.js|sw\.js|pkg\/)/.test(new URL(entry.name).pathname))
+        .filter((entry) => /\/(app\.(?:js|css)|boot\.js|playback-policy\.js|connection-settings\.js|audio-cache\.js|sw\.js|pkg\/)/.test(new URL(entry.name).pathname))
         .map((entry) => ({ url: safeURL(entry.name), durationMs: Math.round(entry.duration),
           transferredBytes: entry.transferSize, status: entry.responseStatus })),
-    }, null, 2));
+    }, null, 2);
   };
   const recover = async (button) => {
     button.disabled = true;
@@ -107,7 +119,7 @@
         await navigator.clipboard.writeText(reportBox.value);
         copyStatus.textContent = '诊断信息已复制';
       } catch {
-        // EasyTier HTTP may lack Clipboard API. Keep the manual selection fallback visible.
+        // Some HTTP origins lack Clipboard API. Keep the manual selection fallback visible.
         reportDetails.open = true;
         reportBox.focus();
         reportBox.select();

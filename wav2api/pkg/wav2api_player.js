@@ -52,10 +52,75 @@ function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
 }
 
+let WASM_VECTOR_LEN = 0;
+
+const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
+
+const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
+    ? function (arg, view) {
+    return cachedTextEncoder.encodeInto(arg, view);
+}
+    : function (arg, view) {
+    const buf = cachedTextEncoder.encode(arg);
+    view.set(buf);
+    return {
+        read: arg.length,
+        written: buf.length
+    };
+});
+
+function passStringToWasm0(arg, malloc, realloc) {
+
+    if (realloc === undefined) {
+        const buf = cachedTextEncoder.encode(arg);
+        const ptr = malloc(buf.length, 1) >>> 0;
+        getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
+        WASM_VECTOR_LEN = buf.length;
+        return ptr;
+    }
+
+    let len = arg.length;
+    let ptr = malloc(len, 1) >>> 0;
+
+    const mem = getUint8ArrayMemory0();
+
+    let offset = 0;
+
+    for (; offset < len; offset++) {
+        const code = arg.charCodeAt(offset);
+        if (code > 0x7F) break;
+        mem[ptr + offset] = code;
+    }
+
+    if (offset !== len) {
+        if (offset !== 0) {
+            arg = arg.slice(offset);
+        }
+        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
+        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
+        const ret = encodeString(arg, view);
+
+        offset += ret.written;
+        ptr = realloc(ptr, len, offset, 1) >>> 0;
+    }
+
+    WASM_VECTOR_LEN = offset;
+    return ptr;
+}
+
+let cachedDataViewMemory0 = null;
+
+function getDataViewMemory0() {
+    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
+        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
+    }
+    return cachedDataViewMemory0;
+}
+
 const CLOSURE_DTORS = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(state => {
-    wasm.__wbindgen_export_3.get(state.dtor)(state.a, state.b)
+    wasm.__wbindgen_export_5.get(state.dtor)(state.a, state.b)
 });
 
 function makeMutClosure(arg0, arg1, dtor, f) {
@@ -71,7 +136,7 @@ function makeMutClosure(arg0, arg1, dtor, f) {
             return f(a, state.b, ...args);
         } finally {
             if (--state.cnt === 0) {
-                wasm.__wbindgen_export_3.get(state.dtor)(a, state.b);
+                wasm.__wbindgen_export_5.get(state.dtor)(a, state.b);
                 CLOSURE_DTORS.unregister(state);
             } else {
                 state.a = a;
@@ -148,80 +213,8 @@ function debugString(val) {
     return className;
 }
 
-let WASM_VECTOR_LEN = 0;
-
-const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
-
-const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
-    ? function (arg, view) {
-    return cachedTextEncoder.encodeInto(arg, view);
-}
-    : function (arg, view) {
-    const buf = cachedTextEncoder.encode(arg);
-    view.set(buf);
-    return {
-        read: arg.length,
-        written: buf.length
-    };
-});
-
-function passStringToWasm0(arg, malloc, realloc) {
-
-    if (realloc === undefined) {
-        const buf = cachedTextEncoder.encode(arg);
-        const ptr = malloc(buf.length, 1) >>> 0;
-        getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
-        WASM_VECTOR_LEN = buf.length;
-        return ptr;
-    }
-
-    let len = arg.length;
-    let ptr = malloc(len, 1) >>> 0;
-
-    const mem = getUint8ArrayMemory0();
-
-    let offset = 0;
-
-    for (; offset < len; offset++) {
-        const code = arg.charCodeAt(offset);
-        if (code > 0x7F) break;
-        mem[ptr + offset] = code;
-    }
-
-    if (offset !== len) {
-        if (offset !== 0) {
-            arg = arg.slice(offset);
-        }
-        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
-        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
-        const ret = encodeString(arg, view);
-
-        offset += ret.written;
-        ptr = realloc(ptr, len, offset, 1) >>> 0;
-    }
-
-    WASM_VECTOR_LEN = offset;
-    return ptr;
-}
-
-let cachedDataViewMemory0 = null;
-
-function getDataViewMemory0() {
-    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
-        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
-    }
-    return cachedDataViewMemory0;
-}
-
 export function wav2api_pause() {
     wasm.wav2api_pause();
-}
-
-/**
- * @param {boolean} muted
- */
-export function wav2api_set_muted(muted) {
-    wasm.wav2api_set_muted(muted);
 }
 
 function takeFromExternrefTable0(idx) {
@@ -229,6 +222,17 @@ function takeFromExternrefTable0(idx) {
     wasm.__externref_table_dealloc(idx);
     return value;
 }
+/**
+ * Change speed and pitch together, rebuilding only the local scheduled queue.
+ * @param {number} speed
+ */
+export function wav2api_set_speed(speed) {
+    const ret = wasm.wav2api_set_speed(speed);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
+
 /**
  * @param {string} base
  * @param {string} key
@@ -265,23 +269,6 @@ export function wav2api_resume() {
 }
 
 /**
- * @param {string} base
- * @param {string} key
- * @param {string} model
- * @returns {Promise<string>}
- */
-export function wav2api_probe(base, key, model) {
-    const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ptr2 = passStringToWasm0(model, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len2 = WASM_VECTOR_LEN;
-    const ret = wasm.wav2api_probe(ptr0, len0, ptr1, len1, ptr2, len2);
-    return ret;
-}
-
-/**
  * @returns {Float32Array}
  */
 export function wav2api_level() {
@@ -289,41 +276,6 @@ export function wav2api_level() {
     var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;
-}
-
-/**
- * @param {number} points
- * @returns {Float32Array}
- */
-export function wav2api_waveform(points) {
-    const ret = wasm.wav2api_waveform(points);
-    var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-    return v1;
-}
-
-export function wav2api_stop() {
-    wasm.wav2api_stop();
-}
-
-/**
- * Per-event PCM byte ceiling for the next request: 0 keeps provider defaults,
- * u32::MAX requests adaptive event sizes and unpaced transfer.
- * @param {number} bytes
- */
-export function wav2api_set_chunk_limit(bytes) {
-    wasm.wav2api_set_chunk_limit(bytes);
-}
-
-/**
- * Change speed and pitch together, rebuilding only the local scheduled queue.
- * @param {number} speed
- */
-export function wav2api_set_speed(speed) {
-    const ret = wasm.wav2api_set_speed(speed);
-    if (ret[1]) {
-        throw takeFromExternrefTable0(ret[0]);
-    }
 }
 
 /**
@@ -353,6 +305,56 @@ export function wav2api_spectrum(bins) {
     return v1;
 }
 
+export function wav2api_stop() {
+    wasm.wav2api_stop();
+}
+
+/**
+ * @param {number} points
+ * @returns {Float32Array}
+ */
+export function wav2api_waveform(points) {
+    const ret = wasm.wav2api_waveform(points);
+    var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+    return v1;
+}
+
+/**
+ * A song's identity at the gateway, retained across seek and reconnect.
+ * @param {string} id
+ * @param {boolean} gateway
+ */
+export function wav2api_set_session(id, gateway) {
+    const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.wav2api_set_session(ptr0, len0, gateway);
+}
+
+/**
+ * Stable local cache identity for the selected source; never sent to Provider.
+ * @param {string} key
+ */
+export function wav2api_set_cache_key(key) {
+    const ptr0 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.wav2api_set_cache_key(ptr0, len0);
+}
+
+/**
+ * @param {number} volume
+ */
+export function wav2api_set_volume(volume) {
+    wasm.wav2api_set_volume(volume);
+}
+
+/**
+ * @param {boolean} muted
+ */
+export function wav2api_set_muted(muted) {
+    wasm.wav2api_set_muted(muted);
+}
+
 /**
  * @returns {string}
  */
@@ -377,21 +379,23 @@ export function wav2api_seek(seconds) {
 }
 
 /**
- * A song's identity at the gateway, retained across seek and reconnect.
- * @param {string} id
- * @param {boolean} gateway
+ * Change playback direction at the current media position while retaining the song session.
+ * @param {number} direction
  */
-export function wav2api_set_session(id, gateway) {
-    const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    wasm.wav2api_set_session(ptr0, len0, gateway);
+export function wav2api_set_direction(direction) {
+    const ret = wasm.wav2api_set_direction(direction);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
 }
 
 /**
- * @param {number} volume
+ * Per-event PCM byte ceiling for the next request: 0 keeps provider defaults,
+ * u32::MAX requests adaptive event sizes and unpaced transfer.
+ * @param {number} bytes
  */
-export function wav2api_set_volume(volume) {
-    wasm.wav2api_set_volume(volume);
+export function wav2api_set_chunk_limit(bytes) {
+    wasm.wav2api_set_chunk_limit(bytes);
 }
 
 /**
@@ -402,6 +406,23 @@ export function wav2api_set_ended_callback(callback) {
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
+}
+
+/**
+ * @param {string} base
+ * @param {string} key
+ * @param {string} model
+ * @returns {Promise<string>}
+ */
+export function wav2api_probe(base, key, model) {
+    const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(model, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.wav2api_probe(ptr0, len0, ptr1, len1, ptr2, len2);
+    return ret;
 }
 
 /**
@@ -418,11 +439,11 @@ function __wbg_adapter_26(arg0, arg1) {
 }
 
 function __wbg_adapter_29(arg0, arg1, arg2) {
-    wasm.closure39_externref_shim(arg0, arg1, arg2);
+    wasm.closure40_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_164(arg0, arg1, arg2, arg3) {
-    wasm.closure56_externref_shim(arg0, arg1, arg2, arg3);
+function __wbg_adapter_172(arg0, arg1, arg2, arg3) {
+    wasm.closure57_externref_shim(arg0, arg1, arg2, arg3);
 }
 
 async function __wbg_load(module, imports) {
@@ -480,6 +501,10 @@ function __wbg_get_imports() {
     }, arguments) };
     imports.wbg.__wbg_call_7cccdd69e0791ae2 = function() { return handleError(function (arg0, arg1, arg2) {
         const ret = arg0.call(arg1, arg2);
+        return ret;
+    }, arguments) };
+    imports.wbg.__wbg_call_b8adc8b1d0a0d8eb = function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
+        const ret = arg0.call(arg1, arg2, arg3, arg4);
         return ret;
     }, arguments) };
     imports.wbg.__wbg_clearTimeout_b2651b7485c58446 = function(arg0, arg1) {
@@ -549,10 +574,21 @@ function __wbg_get_imports() {
         const ret = arg0.getReader();
         return ret;
     };
+    imports.wbg.__wbg_get_123509460060ab98 = function() { return handleError(function (arg0, arg1, arg2, arg3) {
+        const ret = arg1.get(getStringFromWasm0(arg2, arg3));
+        var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+        getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    }, arguments) };
     imports.wbg.__wbg_get_67b2ba62fc30de12 = function() { return handleError(function (arg0, arg1) {
         const ret = Reflect.get(arg0, arg1);
         return ret;
     }, arguments) };
+    imports.wbg.__wbg_headers_9cb51cfd2ac780a4 = function(arg0) {
+        const ret = arg0.headers;
+        return ret;
+    };
     imports.wbg.__wbg_instanceof_ReadableStreamDefaultReader_056dcea99b3557aa = function(arg0) {
         let result;
         try {
@@ -598,7 +634,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_164(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_172(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -768,12 +804,12 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper103 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper106 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 3, __wbg_adapter_26);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper734 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 40, __wbg_adapter_29);
+    imports.wbg.__wbindgen_closure_wrapper752 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 41, __wbg_adapter_29);
         return ret;
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {

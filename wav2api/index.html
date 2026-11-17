@@ -2,14 +2,14 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="wav2api-build" content="3ef553be2f30">
+  <meta name="wav2api-build" content="16c84b470c45">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#08090c">
   <title>wav2api · 模型协议播放器</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./app.css?build=3ef553be2f30">
-  <script src="./boot.js?build=3ef553be2f30"></script>
+  <link rel="stylesheet" href="./app.css?build=16c84b470c45">
+  <script src="./boot.js?build=16c84b470c45"></script>
 </head>
 <body>
 <svg class="icon-defs" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
@@ -72,6 +72,7 @@
     </div>
   </header>
 
+  <p id="offlineCacheNote" class="note" hidden></p>
   <main class="main-row">
     <section class="panel deck" id="deck" aria-label="唱盘">
       <div class="panel-head">
@@ -81,13 +82,16 @@
 
       <div class="turntable">
         <div class="platter-glow" aria-hidden="true"></div>
-        <div class="record-stage">
-        <div class="vinyl" id="vinyl" aria-hidden="true">
+        <div class="record-stage" id="recordStage">
+        <div class="vinyl" id="vinyl" role="group" tabindex="0" aria-describedby="platterHelp"
+          aria-label="唱片控制区，播放时拖动调速，反向拖动在本机缓存范围内倒放；暂停时拖动静音定位。"
+          aria-keyshortcuts="ArrowUp ArrowDown" title="播放时拖动调速；反向拖动在本机缓存范围内倒放。暂停时拖动可静音定位。">
           <div class="vinyl-grooves"></div>
           <div class="vinyl-sheen"></div>
           <div class="label" id="label"><div class="label-art" id="labelArt"></div><div class="label-hole"></div></div>
         </div>
         <canvas class="ring" id="ring" aria-hidden="true"></canvas>
+        <div class="platter-target" id="platterTarget" aria-hidden="true"></div>
         <svg class="tonearm" id="tonearm" viewBox="0 0 100 100" aria-hidden="true">
           <defs>
             <linearGradient id="stylusMetal" x1="0" x2="1"><stop stop-color="#4c5560"/><stop offset=".38" stop-color="#e6edf5"/><stop offset=".6" stop-color="#8f9aa6"/><stop offset="1" stop-color="#3f4853"/></linearGradient>
@@ -105,6 +109,7 @@
         </svg>
         </div>
       </div>
+      <span class="sr-only" id="platterHelp">播放时拖动唱片可改变播放速度和方向；倒放只使用已经保存在本机缓存中的音频，达到缓存边界会暂停。暂停时拖动唱片只改变定位，不会自动播放。键盘聚焦唱片后按上／下方向键调整常态速度。</span>
 
       <div class="deck-meta">
         <h2 class="deck-title" id="deckTitle">未选择曲目</h2>
@@ -149,6 +154,8 @@
         <span class="mono" id="deckHint">WEB AUDIO · 等待时钟</span>
         <span class="dot-sep"></span>
         <span class="mono">s16le / base64</span>
+        <span class="motion-note" id="motionNote" role="status" hidden>系统设置已减弱动画</span>
+        <button type="button" class="link-btn motion-override" id="motionOverrideBtn" hidden>仍启用唱片动效</button>
       </div>
     </section>
 
@@ -164,13 +171,16 @@
       <div class="path-row" title="曲目相对路径">
         <svg class="icon"><use href="#i-folder"/></svg>
         <span class="mono" id="nowPath">—</span>
+        <button type="button" class="link-btn locate-current" id="locateCurrentBtn" hidden>在曲库中定位</button>
       </div>
       <div class="now-badges" id="nowBadges"></div>
 
-      <div class="error-box" id="errorBox" hidden>
+      <p class="cache-source" id="cacheSource">来源待确认 · 缓存状态待确认</p>
+      <div class="cache-notice" id="cacheNotice" role="status" hidden><span id="cacheNoticeText"></span><div class="error-actions"><button class="btn small ghost" id="manageCacheNotice" type="button">缓存管理</button><button class="btn small ghost" id="copyCacheError" type="button">复制诊断</button><button class="btn small ghost" id="dismissCacheNotice" type="button">关闭</button></div></div>
+      <div class="error-box" id="errorBox" role="alert" hidden>
         <svg class="icon"><use href="#i-alert"/></svg>
-        <div class="error-copy"><b>播放失败</b><p id="errorText"></p></div>
-        <button type="button" class="btn small" id="retryBtn">重试</button>
+        <div class="error-copy"><b>操作未完成</b><p id="errorText"></p></div>
+        <div class="error-actions"><button type="button" class="btn small" id="retryBtn">重试</button><button type="button" class="btn small ghost" id="copyError">复制诊断</button><button type="button" class="btn small ghost" id="errorSettings">连接设置</button><button type="button" class="btn small ghost" id="manageCacheError">缓存管理</button></div>
       </div>
 
       <div class="seek-block">
@@ -215,6 +225,7 @@
           <span class="eyebrow">CATALOG</span>
           <h2 class="lib-title">曲库 <span class="count" id="libCount">—</span></h2>
         </div>
+        <button type="button" class="link-btn" id="cacheBtn" aria-haspopup="dialog">本机缓存</button>
         <button type="button" class="icon-btn" id="refreshBtn" aria-label="刷新曲库"><svg class="icon"><use href="#i-refresh"/></svg></button>
       </div>
 
@@ -244,7 +255,7 @@
 
       <div class="lib-foot">
         <span id="libFoot">—</span>
-        <button type="button" class="link-btn" id="moreBtn" hidden>显示更多</button>
+        <button type="button" class="link-btn" id="moreBtn" hidden>继续显示</button>
       </div>
     </aside>
   </main>
@@ -399,6 +410,21 @@
   </footer>
 </div>
 
+<dialog class="settings-dialog" id="cacheDialog" aria-labelledby="cacheTitle">
+  <div class="settings-card cache-card">
+    <div class="settings-head"><h2 id="cacheTitle">本机音频缓存</h2><button type="button" class="btn small ghost" id="cacheClose">关闭</button></div>
+    <label class="cache-toggle"><input id="cacheEnabled" type="checkbox">启用本机音频缓存</label>
+    <p class="note">仅保存在本设备此浏览器站点。播放缓冲只在内存中；持久缓存按 PCM 分块 gzip 压缩后写入 IndexedDB，不把原始 PCM 直接落盘。</p>
+    <p class="note">缓存上限取浏览器站点配额的 20%，最高 512 MiB；空间不足时按最近使用时间淘汰。预计超出上限的曲目只播放、不保存。关闭缓存于下次播放或定位生效。</p>
+    <p class="note" id="cacheUsage" role="status">正在读取占用…</p>
+    <div class="error-actions"><button type="button" class="btn ghost small" id="persistCache" aria-describedby="persistenceHelp">申请持久存储</button><button type="button" class="btn ghost small" id="clearCache">清空全部缓存…</button></div>
+    <p class="note" id="persistenceHelp" role="status"></p>
+    <p class="note" id="persistenceResult" role="status"></p>
+    <p class="note">缓存快照元数据可能陈旧；部分缓存不可离线完整播放。删除可能中断正在读取该缓存的播放。</p>
+    <ul class="cache-entries" id="cacheEntries"></ul>
+    <textarea id="diagnosticText" aria-label="脱敏诊断，复制失败时可手动选择复制" readonly hidden></textarea>
+  </div>
+</dialog>
 <dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
   <form class="settings-card" id="connectionForm">
     <div class="settings-head">
@@ -426,13 +452,13 @@
       <p class="hint">播放经 Magpie 时，曲库仍直接读 Provider；换成别的地址也可以。</p>
     </div>
 
-    <label class="check"><input type="checkbox" id="localNetworkAccess"> 连接的是本地网络服务（家庭网 / EasyTier）</label>
-    <p class="hint">用于 HTTPS 播放器连接内网服务。首次连接请点“测试连接”并允许浏览器访问本地网络；内网端点也必须使用 HTTPS。</p>
+    <label class="check"><input type="checkbox" id="localNetworkAccess"> 连接的是本地网络中的服务</label>
+    <p class="hint">用于 HTTPS 播放器访问本地网络服务。首次连接请点“测试连接”并按浏览器提示授权；端点也必须使用 HTTPS。</p>
 
     <div class="field">
-      <label for="localBridgeOrigin">PC 内网 HTTPS 地址</label>
+      <label for="localBridgeOrigin">本地服务 HTTPS 地址</label>
       <div class="key-row">
-        <input id="localBridgeOrigin" type="url" spellcheck="false" autocomplete="off" placeholder="https://你的PC内网DNS:3443">
+        <input id="localBridgeOrigin" type="url" spellcheck="false" autocomplete="off" placeholder="https://your-service-host:3443">
         <button type="button" class="mini-btn" id="useLocalBridge">填入端点</button>
       </div>
       <p class="hint">填写主机地址即可；播放器会自动设置 Magpie 与曲库路径。</p>
@@ -460,6 +486,6 @@
 </dialog>
 
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
-<script type="module" src="./app.js?build=3ef553be2f30"></script>
+<script type="module" src="./app.js?build=16c84b470c45"></script>
 </body>
 </html>

@@ -1,11 +1,13 @@
-import { defaultConnections, migrateConnectionPrefs } from './connection-settings.js?build=3ef553be2f30';
-import { nextTrackIndex, waveformLightFactor, initialLight, lightAt } from './playback-policy.js?build=3ef553be2f30';
+import { audioCache } from './audio-cache.js?build=16c84b470c45';
+import { defaultConnections, migrateConnectionPrefs } from './connection-settings.js?build=16c84b470c45';
+import { nextTrackIndex, waveformLightFactor, initialLight, lightAt } from './playback-policy.js?build=16c84b470c45';
 // wav2api player — the page. The Rust/WASM module owns fetch + Web Audio;
 // everything below owns layout, state projection and the "拆开看看" reveal.
 
 import init, {
   wav2api_version,
   wav2api_start,
+  wav2api_set_cache_key,
   wav2api_pause,
   wav2api_resume,
   wav2api_stop,
@@ -14,6 +16,7 @@ import init, {
   wav2api_set_speed,
   wav2api_set_chunk_limit,
   wav2api_set_session,
+  wav2api_set_direction,
   wav2api_set_local_network_access,
   wav2api_set_ended_callback,
   wav2api_set_muted,
@@ -22,13 +25,22 @@ import init, {
   wav2api_level,
   wav2api_waveform,
   wav2api_probe,
-} from './pkg/wav2api_player.js?build=3ef553be2f30';
+} from './pkg/wav2api_player.js?build=16c84b470c45';
 
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const LS_KEY = 'wav2api.prefs.v3';
 const AUDIO_EXT = /\.(mp3|flac|wav|m4a|aac|ogg)$/i;
+const WAV2API_PROVIDER_ID = 'wav2api';
+const WAV2API_MODEL_PREFIX = `${WAV2API_PROVIDER_ID}/`;
 const MAX_ROWS = 400;
+const PLATTER_DRAG_THRESHOLD_PX = 7;
+const PLATTER_SPEED_UPDATE_MS = 80;
+const PLATTER_DIRECTION_DEADBAND = 0.08;
+const PLATTER_MAX_SPEED = 2;
+const PLATTER_RETURN_TAU_MS = 180;
+const PLATTER_RETURN_DURATION_MS = 650;
+const PLATTER_STILL_TIMEOUT_MS = 180;
 const PASSWORD_TYPE = ['pass', 'word'].join('');
 
 const DEFAULTS = {
@@ -41,7 +53,6 @@ const DEFAULTS = {
   volume: 0.85,
   muted: false,
   lastTrack: '',
-  showAll: false,
 };
 
 const S = {
@@ -55,8 +66,15 @@ const S = {
   rememberKey: false,
   volume: DEFAULTS.volume,
   muted: false,
-  showAll: false,
+  renderLimit: MAX_ROWS,
 
+  cacheEntries: [],
+  cacheIds: new Map(),
+  cacheCaptureRefs: new Map(),
+  cacheCaptureIds: new Set(),
+  cacheReadFailed: false,
+  offlineCatalog: false,
+  cacheRefresh: 0,
   catalog: [],
   catalogById: new Map(),
   playable: [],
@@ -76,7 +94,9 @@ const S = {
   snapshot: null,
   lastState: 'idle',
   scrollToCurrent: false,
+  motionOverride: false,
   seekDragging: false,
+  platterGesture: null,
   lastBadgeKey: '',
 
   test: new Map(),
@@ -95,12 +115,21 @@ const S = {
   needleTrace: [],
   needleTraceAt: 0,
   needleMediaPosition: null,
+  lastVisualRotation: null,
   wireSamples: [],
 
   revealOpen: false,
   revealTab: 'request',
   loading: false,
   connectionError: false,
+  uiErrorMessage: '',
+  uiErrorHttp: 0,
+  cacheFailureOperation: '',
+  cacheFailureMessage: '',
+  cacheFailureType: '',
+  cacheFailureReference: '',
+  cacheFailureBytesWritten: 0,
+  uiErrorRefreshCatalog: false,
   refreshSequence: 0,
   refreshController: null,
   lastChainAt: 0,
@@ -123,6 +152,22 @@ const escAttr = esc;
 
 function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
+}
+
+function platterTurnSeconds() {
+  const vinyl = $('vinyl');
+  return vinyl ? Number(getComputedStyle(vinyl).getPropertyValue('--record-turn-seconds')) || 9 : 9;
+}
+
+function platterAngleForPosition(position) {
+  return (Number(position) || 0) / platterTurnSeconds() * 360;
+}
+
+function unwrapAngleDelta(current, previous) {
+  let delta = current - previous;
+  if (delta > Math.PI) delta -= Math.PI * 2;
+  else if (delta < -Math.PI) delta += Math.PI * 2;
+  return delta;
 }
 
 function normalizeBase(input) {
@@ -241,10 +286,246 @@ function readSnapshot() {
 // preferences
 // ---------------------------------------------------------------------------
 
+
+// Cache state is a persistent source, independent of Web Audio's scheduled queue.
+function cacheKeyFor(track) {
+  if (!track || track.isGroup || track.isExtra) return '';
+  return track.storedCacheKey || audioCache.keyFor(S.catalogBase, WAV2API_PROVIDER_ID, track.id, track.revision);
+}
+
+function cachedTrack(entry) {
+  if (!S.cacheIds.has(entry.key)) S.cacheIds.set(entry.key, `local-cache-${S.cacheIds.size}`);
+  return {
+    id: entry.trackId, key: S.cacheIds.get(entry.key), playId: entry.trackId || 'local-cache',
+    title: entry.title || '本机缓存曲目', display_name: entry.title || '本机缓存曲目',
+    artist: entry.artist || '', path: entry.path || '', duration: entry.duration || 0,
+    revision: entry.revision || '', ext: extOf(entry.path), cachedOnly: true,
+    storedCacheKey: entry.key,
+  };
+}
+
+function applyCachedFallback() {
+  const locals = S.cacheEntries.filter(entry => entry.state === 'complete').map(cachedTrack);
+  const remote = S.playable.filter(track => !track.cachedOnly);
+  const known = new Set(remote.map(cacheKeyFor).filter(Boolean));
+  S.playable = [...remote, ...locals.filter(track => !known.has(track.storedCacheKey))];
+  S.playableById = new Map(S.playable.map(track => [track.key, track]));
+  S.modelsMeta.ours = S.playable.length;
+  S.modelsMeta.total = S.playable.length + S.extra.length;
+  $('offlineCacheNote').hidden = false;
+  $('offlineCacheNote').textContent = '远端列表未完整刷新。本机缓存快照可从“本机缓存”打开；元数据可能陈旧。';
+}
+
+function updateCacheSource(snap = S.snapshot) {
+  const key = cacheKeyFor(S.current);
+  const entry = S.cacheEntries.find(item => item.key === key);
+  const reportedSource = snap?.state === 'idle' ? '' : snap?.cache_source;
+  const cacheReference = key ? audioCache.referenceForKey(key) : '';
+  const caching = !!cacheReference && (S.cacheCaptureRefs.get(cacheReference) || 0) > 0;
+  const source = { checking: '正在检查来源', cache: `本机缓存 · 已读取 ${fmtBytes(snap?.cache_bytes)}`, network: '远端网络' }[reportedSource] || '来源待确认';
+  const available = !key ? '此路线无稳定缓存版本' : S.cacheReadFailed ? '缓存状态未确认' : entry?.state === 'complete' ? '整首已缓存' : entry ? '部分缓存 · 尚不可离线完整播放' : '尚未完整缓存';
+  const status = caching ? '远端网络 · 缓存中' : `${source} · ${available}`;
+  $('cacheSource').textContent = `${status}${!audioCache.isEnabled() && !caching ? ' · 缓存已关闭' : ''}`;
+}
+
+async function refreshCache() {
+  const sequence = ++S.cacheRefresh;
+  try {
+    const [entries, usage] = await Promise.all([audioCache.list(), audioCache.usage()]);
+    if (sequence !== S.cacheRefresh) return;
+    S.cacheReadFailed = false;
+    S.cacheEntries = entries;
+    $('cacheEnabled').checked = audioCache.isEnabled();
+    $('cacheBtn').textContent = `本机缓存 · ${usage.completeCount} 首`;
+    $('cacheUsage').textContent = `持久缓存 ${fmtBytes(usage.audioBytes)} / 上限 ${fmtBytes(usage.cacheLimitBytes)} · 完整 ${usage.completeCount} / 部分 ${usage.partialCount} · 站点用量 ${usage.browserUsageBytes == null ? '未知' : fmtBytes(usage.browserUsageBytes)} / 配额 ${usage.browserQuotaBytes == null ? '未知' : fmtBytes(usage.browserQuotaBytes)}`;
+    const canRequestPersistence = typeof navigator.storage?.persist === 'function';
+    $('persistCache').disabled = usage.persistent || !canRequestPersistence;
+    $('persistCache').textContent = usage.persistent ? '已获持久存储' : '申请持久存储';
+    $('persistCache').title = usage.persistent
+      ? '浏览器已为此站点授予持久存储'
+      : canRequestPersistence ? '' : '当前浏览器环境不支持持久存储申请';
+    $('persistenceHelp').textContent = usage.persistent
+      ? '浏览器已为此站点授予持久存储。'
+      : canRequestPersistence
+        ? '本机缓存仍可能被浏览器回收；可以申请持久存储。'
+        : '当前浏览器环境不支持申请持久存储。缓存仍可使用，但浏览器可能回收已保存内容。';
+    $('clearCache').disabled = !entries.length;
+    // Preserve focus and scroll while advisory playback events refresh counts.
+    const signature = JSON.stringify(entries.map(e => [e.key, e.state, e.byteLength]));
+    if ($('cacheEntries')._signature !== signature) {
+      const focused = document.activeElement;
+      const index = focused?.dataset.cacheIndex;
+      const action = focused?.dataset.cacheAction;
+      $('cacheEntries').innerHTML = entries.length ? entries.map((entry, i) => `<li><div><b>${esc(entry.title || '本机缓存曲目')}</b><small>${esc(entry.artist || '未知作者')} · ${entry.state === 'complete' ? '完整 · 可离线播放' : '部分 · 不可离线完整播放'} · ${fmtBytes(entry.byteLength)}</small></div><div class="cache-row-actions">${entry.state === 'complete' ? `<button type="button" class="btn small" data-cache-index="${i}" data-cache-action="play">播放</button>` : ''}<button type="button" class="btn ghost small" data-cache-index="${i}" data-cache-action="delete" aria-label="删除 ${escAttr(entry.title || '缓存曲目')}">删除</button></div></li>`).join('') : '<li>尚无缓存。开启后完整播放一首即可保存。</li>';
+      $('cacheEntries')._signature = signature;
+      if (index != null) $('cacheEntries').querySelector(`[data-cache-index="${index}"][data-cache-action="${action}"]`)?.focus();
+    }
+    updateCacheSource();
+  } catch (error) {
+    S.cacheReadFailed = true;
+    $('cacheUsage').textContent = '未能读取缓存清单或占用；远端播放仍可使用。';
+    $('cacheEntries').textContent = '清单不可用；上次状态尚未确认。';
+    $('cacheEntries')._signature = null;
+    $('persistenceHelp').textContent = '未能确认浏览器的持久存储能力；缓存状态尚未确认。';
+    cacheNotice('未能读取本机缓存清单；请检查浏览器站点存储设置。', error, 'read');
+    updateCacheSource();
+  }
+}
+
+function redactDiagnostic(value) {
+  return String(value).replace(/https?:\/\/[^\s"'<>]+/gi, '[redacted]')
+    .replace(/(?:Bearer\s+|(?:api[_-]?key|authorization|cookie|session(?:_id)?|token|cacheKey)\s*[:=]\s*)[^\s,;]+/gi, '[redacted]')
+    .replace(/(?:[A-Za-z]:[\\/]|\/)[^\s"'<>]+/g, '[redacted]')
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, '[redacted]')
+    .replace(/\b[\da-f]{8}-[\da-f-]{27,}\b/gi, '[redacted]')
+    .replace(/[A-Za-z0-9+/=_-]{48,}/g, '[redacted]').slice(0, 1200);
+}
+
+function diagnosticText(action) {
+  const snap = readSnapshot();
+  // Allowlist structured fields; never copy raw requests, track IDs, sessions or PCM.
+  return JSON.stringify({ build: window.wav2apiBoot?.build || 'unknown', time: new Date().toISOString(),
+    browser: navigator.userAgent, action, route: S.current?.cachedOnly ? 'local-cache-snapshot' : S.route,
+    state: snap?.state, http: action === 'playback' ? S.uiErrorHttp : snap?.http_status, retry: snap?.retry_attempt,
+    cacheSource: snap?.cache_source, cacheEnabled: audioCache.isEnabled(),
+    errorMessage: redactDiagnostic(action === 'playback' ? S.uiErrorMessage || snap?.error || '' : S.cacheFailureMessage || ''),
+    errorOperation: action === 'cache' ? S.cacheFailureOperation || undefined : undefined,
+    errorType: action === 'cache' ? S.cacheFailureType || undefined : undefined,
+    cacheReference: action === 'cache' ? S.cacheFailureReference || undefined : undefined,
+    cacheBytesWritten: action === 'cache' && S.cacheFailureBytesWritten ? S.cacheFailureBytesWritten : undefined,
+    errorCategory: action === 'playback' ? 'playback-or-catalog-failed' : 'cache-operation-failed',
+  }, null, 2);
+}
+
+async function copyDiagnostic(action) {
+  const text = diagnosticText(action);
+  try { await navigator.clipboard.writeText(text); toast('脱敏诊断已复制', 'ok'); }
+  catch {
+    $('diagnosticText').value = text;
+    $('diagnosticText').hidden = false;
+    if (!$('cacheDialog').open) $('cacheDialog').showModal();
+    $('diagnosticText').focus(); $('diagnosticText').select();
+  }
+}
+
+function clearCacheNotice() {
+  $('cacheNotice').hidden = true;
+  $('cacheNoticeText').textContent = '';
+  $('diagnosticText').hidden = true;
+  $('diagnosticText').value = '';
+  S.cacheFailureOperation = '';
+  S.cacheFailureMessage = '';
+  S.cacheFailureType = '';
+  S.cacheFailureReference = '';
+  S.cacheFailureBytesWritten = 0;
+}
+
+function cacheNotice(message, error, operation = 'unknown', reference = '', bytesWritten = 0) {
+  S.cacheFailureOperation = operation;
+  S.cacheFailureMessage = redactDiagnostic(error?.message || message || '原因未确认');
+  S.cacheFailureType = /^[A-Za-z]+Error$/.test(error?.name) ? error.name : undefined;
+  S.cacheFailureReference = /^[A-Za-z0-9_-]{1,48}$/.test(reference) ? reference : '';
+  S.cacheFailureBytesWritten = Math.max(0, Number(bytesWritten) || 0);
+  const details = [S.cacheFailureType, error?.message && redactDiagnostic(error.message)].filter(Boolean).join('：');
+  $('cacheNoticeText').textContent = details ? `${message} 原因：${details}` : message;
+  $('cacheNotice').hidden = false;
+}
+
+function openCacheManager() {
+  if (!$('cacheDialog').open) $('cacheDialog').showModal();
+  void refreshCache();
+}
+
+function bindCacheUI() {
+  $('cacheEnabled').checked = audioCache.isEnabled();
+  $('cacheBtn').addEventListener('click', openCacheManager);
+  $('manageCacheError').addEventListener('click', openCacheManager);
+  $('manageCacheNotice').addEventListener('click', openCacheManager);
+  $('cacheClose').addEventListener('click', () => $('cacheDialog').close());
+  $('cacheDialog').addEventListener('click', event => { if (event.target === $('cacheDialog')) $('cacheDialog').close(); });
+  $('cacheDialog').addEventListener('close', () => $('cacheBtn').focus());
+  $('cacheEnabled').addEventListener('change', event => { audioCache.setEnabled(event.target.checked); });
+  $('copyError').addEventListener('click', () => copyDiagnostic('playback'));
+  $('copyCacheError').addEventListener('click', () => copyDiagnostic('cache'));
+  $('dismissCacheNotice').addEventListener('click', clearCacheNotice);
+  $('errorSettings').addEventListener('click', openSettings);
+  const mutate = async (operation, fn) => {
+    try { await fn(); await refreshCache();
+      if (S.offlineCatalog) { applyCachedFallback(); renderCounts(); renderLibrary(); }
+    } catch (error) {
+      $('persistenceResult').textContent = `未能${operation}；请检查浏览器站点存储设置。`;
+      cacheNotice(`未能${operation}；请检查浏览器站点存储设置。`, error, 'manage');
+    }
+  };
+  $('clearCache').addEventListener('click', () => {
+    if (confirm('清空本设备此站点的全部音频缓存？离线曲目将不可用；正在读取缓存的播放可能中断。')) void mutate('清空音频缓存', () => audioCache.clear());
+  });
+  $('persistCache').addEventListener('click', () => void mutate('申请持久存储', async () => {
+    const accepted = await audioCache.requestPersistence();
+    $('persistenceResult').textContent = accepted ? '浏览器已允许持久存储。' : '浏览器未授予持久存储；现有缓存仍可使用，但可能被回收。';
+  }));
+  $('cacheEntries').addEventListener('click', event => {
+    const button = event.target.closest('[data-cache-action]');
+    if (!button) return;
+    const entry = S.cacheEntries[Number(button.dataset.cacheIndex)];
+    if (!entry) return;
+    if (button.dataset.cacheAction === 'play') {
+      if (!audioCache.isEnabled()) { $('persistenceResult').textContent = '请先开启本机音频缓存，再播放缓存快照。'; return; }
+      const track = cachedTrack(entry);
+      if (!S.playableById.has(track.key)) { S.playable.push(track); S.playableById.set(track.key, track); }
+      $('cacheDialog').close(); playTrack(track);
+    } else void mutate('删除这首音频缓存', () => audioCache.deleteTrack(entry.key));
+  });
+  window.addEventListener('wav2api-cache-capture-start', event => {
+    const detail = event.detail || {};
+    if (!detail.captureId || !detail.cacheReference || S.cacheCaptureIds.has(detail.captureId)) return;
+    S.cacheCaptureIds.add(detail.captureId);
+    S.cacheCaptureRefs.set(detail.cacheReference, (S.cacheCaptureRefs.get(detail.cacheReference) || 0) + 1);
+    clearCacheNotice();
+    updateCacheSource();
+  });
+  window.addEventListener('wav2api-cache-capture-end', event => {
+    const detail = event.detail || {};
+    if (!S.cacheCaptureIds.delete(detail.captureId)) return;
+    const remaining = Math.max(0, (S.cacheCaptureRefs.get(detail.cacheReference) || 0) - 1);
+    if (remaining) S.cacheCaptureRefs.set(detail.cacheReference, remaining);
+    else S.cacheCaptureRefs.delete(detail.cacheReference);
+    if (detail.outcome === 'complete') clearCacheNotice();
+    updateCacheSource();
+    void refreshCache();
+  });
+  window.addEventListener('wav2api-cache-hit', () => { clearCacheNotice(); void refreshCache(); });
+  window.addEventListener('wav2api-cache-complete', () => { clearCacheNotice(); void refreshCache(); });
+  window.addEventListener('wav2api-cache-evicted', event => {
+    const count = Math.max(0, Number(event.detail?.count) || 0);
+    if (count) toast(`缓存空间不足，已淘汰最久未使用的 ${count} 首曲目。`, 'ok');
+    void refreshCache();
+  });
+  for (const name of ['partial', 'state', 'updated']) window.addEventListener(`wav2api-cache-${name}`, () => void refreshCache());
+  window.addEventListener('wav2api-cache-error', event => {
+    const detail = event.detail || {};
+    cacheNotice(
+      detail.operation === 'read'
+        ? '未能读取本地缓存，已改用远端音频；播放结果见播放状态。'
+        : Number(detail.bytesWritten) > 0
+          ? '本次未能保存整首缓存；部分音频已写入浏览器存储，远端播放不受影响。'
+          : '本次缓存写入未完成；已保存的其他曲目不受影响，远端播放继续。',
+      detail.error,
+      detail.operation === 'read' ? 'read' : 'write',
+      detail.cacheReference,
+      detail.bytesWritten,
+    );
+    void refreshCache();
+  });
+}
+
 function loadPrefs() {
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch { /* ignore */ }
   S.prefs = { ...DEFAULTS, ...migrateConnectionPrefs(stored, location.origin) };
+  // The old preference expanded thousands of rows in one render. Pagination
+  // replaces it; retain the remaining preferences and discard this key.
+  delete S.prefs.showAll;
   S.route = S.prefs.route === 'direct' ? 'direct' : 'magpie';
   S.rememberKey = !!S.prefs.rememberKey;
   S.localNetworkAccess = !!S.prefs.localNetworkAccess;
@@ -258,7 +539,7 @@ function loadPrefs() {
   S.volume = clamp(Number(S.prefs.volume ?? DEFAULTS.volume), 0, 1);
   S.muted = !!S.prefs.muted;
   S.playbackMode = ['loop', 'single', 'shuffle'].includes(S.prefs.playbackMode) ? S.prefs.playbackMode : 'loop';
-  S.showAll = !!S.prefs.showAll;
+  S.renderLimit = MAX_ROWS;
 }
 
 let saveTimer = 0;
@@ -270,7 +551,7 @@ function savePrefs() {
     S.prefs.volume = S.volume;
     S.prefs.playbackMode = S.playbackMode;
     S.prefs.muted = S.muted;
-    S.prefs.showAll = S.showAll;
+    delete S.prefs.showAll;
     S.prefs.rememberKey = S.rememberKey;
     S.prefs.localNetworkAccess = S.localNetworkAccess;
     if (S.rememberKey) S.prefs.key = S.key;
@@ -338,7 +619,7 @@ async function fetchModels(base, key, { signal, localNetworkAccess = S.localNetw
         message: ctrl.signal.aborted
           ? `${signal?.aborted ? '已取消旧请求' : '读取曲库超过 10 秒'} · ${url}`
           : `请求 ${url} 失败：${e?.message || e}\n${localNetworkAccess
-            ? '请确认 HTTPS 证书有效、浏览器已允许此站点访问本地网络、EasyTier 可达，且本地服务已允许当前网页来源。'
+            ? '请确认服务端 HTTPS 证书有效、浏览器已允许此站点访问本地网络、服务地址可达，且服务端已允许当前网页来源。'
             : originOf(base) === location.origin
               ? '这是同源请求，请检查网页服务到音频服务或网关的转发连接。'
               : '这是跨域请求；直接访问 Magpie 需网页来源白名单和网关密钥。'}`,
@@ -362,6 +643,7 @@ function applyCatalog(rows) {
     const parsed = splitDisplay(display);
     list.push({
       id: row.id,
+      revision: clean(row.revision),
       key: row.id,
       display_name: display,
       artist: clean(row.artist) || parsed.artist,
@@ -388,13 +670,14 @@ function applyPlayable(rows) {
   const playable = [];
   const extra = [];
   const seen = new Set();
+  const catalogTracks = new Set();
   const byDisplay = new Map(S.catalog.map((t) => [norm(t.display_name), t]));
 
   for (const row of rows) {
     if (!row || typeof row.id !== 'string' || seen.has(row.id)) continue;
     seen.add(row.id);
     const id = row.id;
-    const owned = row.owned_by === 'wav2api';
+    const owned = row.owned_by === WAV2API_PROVIDER_ID;
     const stripped = stripFirstSegment(id);
 
     let cat = S.catalogById.get(id) || (stripped !== id ? S.catalogById.get(stripped) : null);
@@ -403,7 +686,8 @@ function applyPlayable(rows) {
       cat = byDisplay.get(norm(display)) || null;
     }
 
-    const ours = !!cat || owned || id.startsWith('wav2api/') || AUDIO_EXT.test(id);
+    const isWav2ApiModel = owned || id.startsWith(WAV2API_MODEL_PREFIX);
+    const ours = !!cat || isWav2ApiModel || AUDIO_EXT.test(id);
     if (!ours) {
       const display = String(row.display_name || id);
       const parsed = splitDisplay(display);
@@ -423,8 +707,15 @@ function applyPlayable(rows) {
     }
 
     if (cat) {
-      playable.push({ ...cat, key: cat.id, playId: id, available: true });
+      if (catalogTracks.has(cat.id)) continue;
+      catalogTracks.add(cat.id);
+      // Magpie can retain a flat or stale alias; the Provider's relative path is authoritative.
+      const playId = S.route === 'magpie' && isWav2ApiModel
+        ? `${WAV2API_MODEL_PREFIX}${cat.id}`
+        : id;
+      playable.push({ ...cat, key: cat.id, playId, available: true });
     } else {
+      if (S.route === 'magpie' && S.catalogOk && isWav2ApiModel) continue;
       const path = String(row.path || stripped || id);
       const display = String(row.display_name || basename(path));
       const parsed = splitDisplay(display);
@@ -443,6 +734,20 @@ function applyPlayable(rows) {
     }
   }
 
+  if (S.route === 'magpie' && S.catalogOk) {
+    // The Provider catalog is the complete library; Magpie's key-filtered list may be smaller.
+    for (const track of S.catalog) {
+      if (catalogTracks.has(track.id)) continue;
+      catalogTracks.add(track.id);
+      playable.push({
+        ...track,
+        key: track.id,
+        playId: `${WAV2API_MODEL_PREFIX}${track.id}`,
+        available: true,
+      });
+    }
+  }
+
   const order = new Map(S.catalog.map((t, i) => [t.id, i]));
   playable.sort((a, b) => {
     const ai = order.has(a.key) ? order.get(a.key) : 1e9;
@@ -453,7 +758,11 @@ function applyPlayable(rows) {
   S.playable = playable;
   S.playableById = new Map(playable.map((t) => [t.key, t]));
   S.extra = extra;
-  S.modelsMeta = { total: rows.length, ours: playable.length, extra: extra.length };
+  S.modelsMeta = {
+    total: Math.max(rows.length, playable.length + extra.length),
+    ours: playable.length,
+    extra: extra.length,
+  };
 }
 
 async function refreshAll({ initial = false } = {}) {
@@ -464,6 +773,8 @@ async function refreshAll({ initial = false } = {}) {
   const catalogBase = S.catalogBase, playBase = S.playBase, key = routeKey();
   if (S.localNetworkAccess && !S.localNetworkReady) {
     S.loading = false;
+    S.offlineCatalog = true;
+    await refreshCache(); applyCachedFallback(); renderCounts(); renderLibrary();
     setConn('warn', '请在连接设置中测试并授权内网连接');
     return false;
   }
@@ -481,7 +792,9 @@ async function refreshAll({ initial = false } = {}) {
     S.connectionError = !play.ok;
     S.catalogOk = cat.ok;
     if (cat.ok) applyCatalog(cat.data);
-    else toast(`曲库端点读取失败：${cat.error.short}，改用网关显示名`, 'err');
+    else applyCatalog([]);
+    S.offlineCatalog = !cat.ok || !play.ok;
+    $('offlineCacheNote').hidden = cat.ok && play.ok;
     if (play.ok) {
       applyPlayable(play.data);
       const ms = Math.round(performance.now() - t0);
@@ -497,25 +810,29 @@ async function refreshAll({ initial = false } = {}) {
       if (!S.playable.length) {
         showError(
           `${routeName()} 的 /v1/models 里没有可识别的音频曲目。\n` +
-          `若用 Magpie：magpie provider refresh wav2api，再 magpie provider models wav2api <ids…> 暴露曲目。`,
+          '若用 Magpie：检查播放器 Gateway Key 是否允许 wav2api/*，并确认曲库 Provider 端点可用。',
         );
       } else {
         clearError();
       }
     } else {
+      S.playable = []; S.playableById.clear(); S.extra = [];
       setConn('err', play.error.short);
       if (cat.ok) {
         // The catalog is visible, but playback cannot be trusted on this route.
         applyPlayable([]);
       }
-      showError(play.error.message);
+      showError(play.error.message, { status: play.error.status });
     }
 
+    await refreshCache();
+    if (sequence !== S.refreshSequence || controller.signal.aborted) return false;
+    if (!cat.ok || !play.ok) applyCachedFallback();
     renderCounts();
     renderLibrary();
     updateRouteUI();
     updateCurrentUI();
-    if (S.booted) toast('曲库已刷新', 'ok');
+    if (S.booted && cat.ok && play.ok) toast('曲库已刷新', 'ok');
     return true;
   } finally {
     if (sequence === S.refreshSequence) {
@@ -546,6 +863,29 @@ function visibleTracks() {
   return list;
 }
 
+function groupedLibraryTracks(visible) {
+  const groups = new Map();
+  for (const track of visible) {
+    const group = track.isExtra ? '__extra__' : dirOf(track.path);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(track);
+  }
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => {
+      if (a === '__extra__') return 1;
+      if (b === '__extra__') return -1;
+      return a.localeCompare(b, 'zh-Hans-CN');
+    })
+    .map(([group, items]) => {
+      items.sort((a, b) => String(a.path).localeCompare(String(b.path), 'zh-Hans-CN', { numeric: true }));
+      return {
+        group,
+        label: group === '__extra__' ? '其他模型 · 非音频协议' : group,
+        items,
+      };
+    });
+}
+
 function testTitle(t) {
   const r = S.test.get(t.key);
   if (!r) return '未试音';
@@ -561,28 +901,17 @@ function renderLibrary() {
   if (!host) return;
   const scrollTop = host.scrollTop;
   const visible = visibleTracks();
-  const groups = new Map();
-
-  for (const t of visible) {
-    const g = t.isExtra ? '__extra__' : dirOf(t.path);
-    if (!groups.has(g)) groups.set(g, []);
-    groups.get(g).push(t);
-  }
-
-  const keyOf = (g) => (g === '__extra__' ? '其他模型 · 非音频协议' : g);
-  const sorted = Array.from(groups.entries()).sort(([a], [b]) => {
-    if (a === '__extra__') return 1;
-    if (b === '__extra__') return -1;
-    return a.localeCompare(b, 'zh-Hans-CN');
-  });
+  const groups = groupedLibraryTracks(visible);
 
   let html = '';
   let shown = 0;
-  const limit = S.showAll ? Infinity : MAX_ROWS;
+  let hasMore = false;
 
-  for (const [group, items] of sorted) {
-    items.sort((a, b) => String(a.path).localeCompare(String(b.path), 'zh-Hans-CN', { numeric: true }));
-    const label = keyOf(group);
+  for (const { group, label, items } of groups) {
+    if (shown >= S.renderLimit) {
+      hasMore = true;
+      break;
+    }
     const collapsed = S.collapsed.has(label);
     html += `<div class="group ${collapsed ? 'collapsed' : ''}">`;
     html += `<button type="button" class="group-head" data-group="${escAttr(label)}" aria-expanded="${!collapsed}">
@@ -593,7 +922,10 @@ function renderLibrary() {
     </button><ul class="group-list">`;
 
     for (const t of items) {
-      if (shown >= limit) break;
+      if (shown >= S.renderLimit) {
+        hasMore = true;
+        break;
+      }
       shown += 1;
       const test = S.test.get(t.key);
       // Extras are provably not ours, so they get their own hollow mark
@@ -617,10 +949,12 @@ function renderLibrary() {
       </li>`;
     }
 
-    if (shown >= limit) {
-      html += `<li class="empty">还有更多曲目未渲染</li>`;
-    }
     html += '</ul></div>';
+    if (hasMore) break;
+  }
+
+  if (hasMore) {
+    html += `<div class="list-more-note">为保持列表流畅，先显示 ${shown} 首；其余 ${visible.length - shown} 首仍可搜索。</div>`;
   }
 
   if (!visible.length) {
@@ -633,7 +967,14 @@ function renderLibrary() {
 
   host.innerHTML = html;
   host.scrollTop = scrollTop;
-  $('moreBtn').hidden = visible.length <= shown;
+  const moreBtn = $('moreBtn');
+  moreBtn.hidden = !hasMore;
+  if (hasMore) {
+    const nextBatch = Math.min(MAX_ROWS, visible.length - shown);
+    moreBtn.textContent = visible.length - shown > MAX_ROWS
+      ? `再显示 ${nextBatch} 首`
+      : `显示剩余 ${nextBatch} 首`;
+  }
 
   if (S.scrollToCurrent) {
     S.scrollToCurrent = false;
@@ -650,6 +991,52 @@ function renderLibrary() {
       }
     }
   }
+}
+
+function findCurrentLibraryTrack() {
+  const current = S.current;
+  return S.playableById.get(S.currentKey)
+    || S.playable.find((track) => (current?.path && track.path === current.path)
+      || (current?.id && track.id === current.id)
+      || (current?.display_name && norm(track.display_name) === norm(current.display_name)))
+    || null;
+}
+
+function locateCurrentTrack() {
+  const track = findCurrentLibraryTrack();
+  if (!track) {
+    toast('当前播放曲目尚未匹配到曲库条目。', 'err');
+    return;
+  }
+
+  S.currentKey = track.key;
+  S.filter = 'audio';
+  S.query = track.path || track.id;
+  S.renderLimit = MAX_ROWS;
+  S.collapsed.delete(dirOf(track.path));
+  $('search').value = S.query;
+  $$('.chip').forEach((chip) => chip.classList.toggle('is-active', chip.dataset.filter === 'audio'));
+  $('trackList').scrollTop = 0;
+  S.scrollToCurrent = true;
+  renderLibrary();
+  renderCounts();
+}
+
+function motionPreferenceReduced() {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches && !S.motionOverride;
+}
+
+function updateMotionOverrideUI() {
+  const button = $('motionOverrideBtn');
+  if (!button) return;
+  const systemReducesMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const overrideAvailable = systemReducesMotion && !S.motionOverride;
+  button.hidden = !overrideAvailable;
+  const note = $('motionNote');
+  note.hidden = !overrideAvailable;
+  note.textContent = '系统设置已减弱动画';
+  button.textContent = '仍启用唱片动效';
+  button.title = '仅为当前页面临时覆盖系统的减弱动效偏好';
 }
 
 function renderCounts() {
@@ -677,11 +1064,16 @@ function renderCounts() {
   }
 
   const hidden = S.extra.length ? ` · 隐藏 ${S.extra.length} 个非音频模型` : '';
-  const metaNote = !S.catalogOk && S.playable.length ? ' · 元数据来自 Magpie（无时长）' : '';
+  const metaNote = S.offlineCatalog ? ' · 本机缓存快照的元数据可能陈旧' : '';
   const baseCount = S.filter === 'all' ? all : S.filter === 'passed' ? passed : ours;
+  const shown = Math.min(visible.length, S.renderLimit);
+  const hasMore = visible.length > shown;
+  const rangeNote = hasMore
+    ? q ? ` · 已显示 ${shown} 首，搜索覆盖当前筛选的全部结果` : ' · 可搜索未显示曲目'
+    : '';
   $('libFoot').textContent = q
-    ? `匹配 ${visible.length} 首${hidden}${metaNote}`
-    : `显示 ${visible.length} / ${baseCount}${hidden}${metaNote}`;
+    ? `匹配 ${visible.length} 首${rangeNote}${hidden}${metaNote}`
+    : `显示 ${shown} / ${baseCount}${rangeNote}${hidden}${metaNote}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -789,6 +1181,7 @@ function renderBadges(track, snap) {
 
 function setImmediateTrackUI(track) {
   if (!track) {
+    $('locateCurrentBtn').hidden = true;
     $('deckTitle').textContent = '未选择曲目';
     $('deckArtist').textContent = '从右侧曲库选一首，或按播放';
     $('nowTitle').textContent = '选一首，按下播放';
@@ -800,11 +1193,12 @@ function setImmediateTrackUI(track) {
     return;
   }
   $('deckTitle').textContent = track.title || track.display_name;
-  $('deckArtist').textContent = track.artist || '未知作者';
+  $('deckArtist').textContent = track.cachedOnly ? `${track.artist || '未知作者'} · 本机缓存快照（元数据可能陈旧）` : track.artist || '未知作者';
   $('nowTitle').textContent = track.title || track.display_name;
   $('nowArtist').textContent = track.artist || '未知作者';
   $('nowPath').innerHTML = renderPath(track.path);
   $('nowPath').title = track.path;
+  $('locateCurrentBtn').hidden = !findCurrentLibraryTrack();
   renderBadges(track, S.snapshot);
   $('timeTotal').textContent = track.duration ? fmtTime(track.duration) : '--:--';
   loadCover(track);
@@ -815,11 +1209,16 @@ function setImmediateTrackUI(track) {
 function setSeekUI(pos, dur, buffered) {
   const total = dur > 0 ? dur : (S.current?.duration || 0);
   const p = total > 0 ? clamp(pos, 0, total) : Math.max(0, pos);
-  const bufferedEnd = total > 0 ? clamp(pos + Math.max(0, buffered || 0) * (S.snapshot?.speed || 1), 0, total) : 0;
   const playedPct = total > 0 ? (p / total) * 100 : 0;
-  const bufferPct = total > 0 ? (bufferedEnd / total) * 100 : 0;
+  const bufferSeconds = Math.max(0, buffered || 0) * (S.snapshot?.speed || 1);
+  const reverse = Number(S.snapshot?.direction) < 0;
+  const bufferStart = total > 0 ? clamp(reverse ? p - bufferSeconds : p, 0, total) : 0;
+  const bufferEnd = total > 0 ? clamp(reverse ? p : p + bufferSeconds, 0, total) : 0;
+  const bufferLeftPct = total > 0 ? (bufferStart / total) * 100 : 0;
+  const bufferPct = total > 0 ? Math.max(0, ((bufferEnd - bufferStart) / total) * 100) : 0;
 
   $('seekPlayed').style.width = `${playedPct}%`;
+  $('seekBuffer').style.left = `${bufferLeftPct}%`;
   $('seekBuffer').style.width = `${bufferPct}%`;
   $('seekThumb').style.left = `${playedPct}%`;
   $('timeNow').textContent = fmtTime(p);
@@ -841,10 +1240,19 @@ function updateCurrentUI() {
   }
 }
 
-function showError(message) {
+function showError(message, { status = S.snapshot?.http_status } = {}) {
   const box = $('errorBox');
   if (!box) return;
-  $('errorText').textContent = String(message || '未知错误');
+  S.uiErrorMessage = redactDiagnostic(message || '原因未确认');
+  $('errorText').textContent = `未能${S.connectionError ? '刷新远端曲库' : '完成当前播放'}：${S.uiErrorMessage}`;
+  status = Number(status);
+  S.uiErrorHttp = status;
+  S.uiErrorRefreshCatalog = (status === 422 && /cannot decode|probe failed/i.test(String(message)))
+    || (status === 404 && /unknown track|removed from the model list/i.test(String(message)));
+  $('retryBtn').hidden = ([400, 401, 403, 404, 405, 413, 415, 422].includes(status)
+    || /unsupported|not supported|invalid|forbidden|unauthorized|不支持|无效|权限/i.test(String(message)))
+    && !S.uiErrorRefreshCatalog;
+  $('retryBtn').textContent = S.uiErrorRefreshCatalog ? '刷新曲库' : '重试';
   box.hidden = false;
   $('deck').classList.add('is-error');
 }
@@ -852,6 +1260,10 @@ function showError(message) {
 function clearError() {
   const box = $('errorBox');
   if (box) box.hidden = true;
+  S.uiErrorMessage = '';
+  S.uiErrorHttp = 0;
+  S.uiErrorRefreshCatalog = false;
+  $('retryBtn').textContent = '重试';
   $('deck').classList.remove('is-error');
 }
 
@@ -861,7 +1273,7 @@ function clearError() {
 
 function coverUrl(track) {
   const origin = originOf(S.catalogBase);
-  if (!origin) return '';
+  if (!origin || track.cachedOnly) return '';
   return `${origin}/cover?id=${encodeURIComponent(track.id)}`;
 }
 
@@ -1008,20 +1420,31 @@ function playTrack(track, offset = 0, { preserveSession = false } = {}) {
     toast('这是文本模型，不提供 audio.format。点「仅音频协议」看曲目。', 'err');
     return;
   }
+  if (track.cachedOnly && !audioCache.isEnabled()) {
+    cacheNotice('未能播放本机缓存快照：缓存已关闭。请在缓存管理中开启后播放。', null, 'play');
+    openCacheManager();
+    return;
+  }
   if (!track.playId) {
     toast('这首没有可用的播放 id', 'err');
     return;
   }
+  abandonPlatterGesture();
+  clearCacheNotice();
   // One song is one gateway session; seek and pause/resume keep the engine's ID.
   let session = preserveSession ? readSnapshot()?.session_id : '';
   if (!session) {
     const sessionBytes = crypto.getRandomValues(new Uint8Array(16));
     session = `wav2api-${Array.from(sessionBytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
   }
+  S.connectionError = false;
   wav2api_set_session(session, S.route === 'magpie');
   S.current = track;
   S.currentKey = track.key;
   S.snapshot = null;
+  S.lastVisualRotation = null;
+  S.needleMediaPosition = null;
+  S.needleTrace = [];
   S.lastBadgeKey = '';
   S.pendingOffset = offset;
   S.prefs.lastTrack = track.key;
@@ -1031,6 +1454,10 @@ function playTrack(track, offset = 0, { preserveSession = false } = {}) {
   setStateUI('connecting');
   setSeekUI(offset, track.duration || 0, 0);
   try {
+    const cacheKey = cacheKeyFor(track);
+    audioCache.rememberTrack(cacheKey, track);
+    wav2api_set_cache_key(cacheKey);
+    updateCacheSource();
     wav2api_start(
       S.playBase,
       routeKey(),
@@ -1052,6 +1479,20 @@ function playTrack(track, offset = 0, { preserveSession = false } = {}) {
 }
 
 function togglePlay() {
+  const initial = readSnapshot();
+  if (initial) S.snapshot = initial;
+  if (S.platterGesture?.wasPlaying && !S.platterGesture.failed) {
+    const active = ['playing', 'connecting', 'buffering', 'retrying'].includes(initial?.state);
+    abandonPlatterGesture({ restoreRate: true });
+    if (active) {
+      wav2api_pause();
+      setStateUI('paused');
+    } else {
+      setStateUI('connecting');
+    }
+    return;
+  }
+  abandonPlatterGesture({ commitSeek: true, restoreRate: true });
   const live = readSnapshot();
   if (live) S.snapshot = live;
   const state = live?.state || S.snapshot?.state || 'idle';
@@ -1079,6 +1520,7 @@ function togglePlay() {
 }
 
 function stopPlayback() {
+  abandonPlatterGesture();
   wav2api_stop();
   S.pendingOffset = 0;
   clearError();
@@ -1087,6 +1529,7 @@ function stopPlayback() {
 }
 
 function seekTo(seconds) {
+  abandonPlatterGesture({ restoreRate: true });
   const live = readSnapshot();
   if (live) S.snapshot = live;
   const dur = live?.duration || S.current?.duration || 0;
@@ -1115,6 +1558,315 @@ function toggleMute() {
   savePrefs();
 }
 
+function updatePlatterReadout(gesture = S.platterGesture) {
+  const output = $('speedValue');
+  const vinyl = $('vinyl');
+  const baseSpeed = clamp(Number($('speed').value) || 1, 0.5, 2);
+  let label = `${baseSpeed.toFixed(2)}×`;
+  if (gesture?.phase === 'returning') {
+    label = `回速 ${gesture.baseSpeed.toFixed(2)}×`;
+  } else if (gesture?.dragging && !gesture.wasPlaying) {
+    label = '静音定位';
+  } else if (gesture?.dragging && gesture.boundaryReached && gesture.direction < 0) {
+    label = '缓存边界';
+  } else if (gesture?.dragging && gesture.waitingForBuffer) {
+    const requested = gesture.currentRate || 0;
+    label = Math.abs(requested) < PLATTER_DIRECTION_DEADBAND
+      ? '等待缓冲'
+      : `待播 ${requested < 0 ? '−' : '+'}${Math.abs(requested).toFixed(2)}×`;
+  } else if (gesture?.dragging) {
+    const rate = gesture.currentRate || 0;
+    label = Math.abs(rate) < PLATTER_DIRECTION_DEADBAND
+      ? '停盘 0×'
+      : `${rate < 0 ? '倒放 −' : '刮碟 +'}${Math.abs(rate).toFixed(2)}×`;
+  }
+  output.textContent = label;
+  output.setAttribute('aria-label', `当前唱片控制状态：${label}`);
+  vinyl.setAttribute('aria-label', `唱片控制区，${label}。${$('platterHelp').textContent}`);
+}
+
+function setBaseSpeed(value) {
+  const speed = clamp(Number(value) || 1, 0.5, 2);
+  $('speed').value = String(speed);
+  if (S.platterGesture?.active) {
+    S.platterGesture.baseSpeed = speed;
+    if (!S.platterGesture.wasPlaying && S.platterGesture.phase !== 'returning') {
+      try {
+        wav2api_set_speed(speed);
+        S.platterGesture.engineSpeed = speed;
+      } catch (error) { toast(`调速失败：${error}`, 'err'); }
+    }
+    updatePlatterReadout();
+    return;
+  }
+  try {
+    wav2api_set_speed(speed);
+    updatePlatterReadout(null);
+  } catch (error) {
+    toast(`调速失败：${error}`, 'err');
+  }
+}
+
+function platterPointerAngle(event) {
+  const stage = $('recordStage');
+  const rect = stage.getBoundingClientRect();
+  return Math.atan2(event.clientY - (rect.top + rect.height / 2), event.clientX - (rect.left + rect.width / 2));
+}
+
+function applyPlatterRate(rate, gesture) {
+  if (gesture.failed) return;
+  const magnitude = Math.abs(rate);
+  const nextDirection = rate < 0 ? -1 : 1;
+  if (magnitude < PLATTER_DIRECTION_DEADBAND) {
+    if (!gesture.pausedForScratch) wav2api_pause();
+    gesture.pausedForScratch = true;
+    gesture.speed = 0;
+    gesture.currentRate = 0;
+    gesture.lastEngineUpdate = performance.now();
+    updatePlatterReadout(gesture);
+    return;
+  }
+  if (gesture.boundaryReached && nextDirection < 0) {
+    gesture.speed = 0;
+    gesture.currentRate = 0;
+    updatePlatterReadout(gesture);
+    return;
+  }
+
+  const snapshot = readSnapshot() || S.snapshot;
+  const needsResume = gesture.pausedForScratch
+    || (snapshot?.state === 'paused' && snapshot.stream_done)
+    || gesture.boundaryReached;
+  const speed = clamp(magnitude, 0.1, PLATTER_MAX_SPEED);
+  const directionChanged = nextDirection !== gesture.direction;
+  try {
+    if (directionChanged) {
+      wav2api_set_direction(nextDirection);
+      gesture.direction = nextDirection;
+      gesture.boundaryReached = false;
+    }
+    if (needsResume) wav2api_resume();
+    if (Math.abs(speed - gesture.engineSpeed) >= 0.035
+      && (directionChanged || performance.now() - gesture.lastEngineUpdate >= PLATTER_SPEED_UPDATE_MS)) {
+      wav2api_set_speed(speed);
+      gesture.engineSpeed = speed;
+      gesture.lastEngineUpdate = performance.now();
+    } else if (directionChanged) {
+      gesture.lastEngineUpdate = performance.now();
+    }
+    gesture.pausedForScratch = false;
+    gesture.speed = speed;
+    gesture.currentRate = nextDirection * speed;
+    updatePlatterReadout(gesture);
+  } catch (error) {
+    gesture.failed = true;
+    gesture.currentRate = 0;
+    showError(`唱片控制失败：${error}`);
+    updatePlatterReadout(gesture);
+  }
+}
+
+function beginPlatterGesture(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (!S.current || $('settingsDialog').open || $('cacheDialog').open) return;
+  if (S.platterGesture?.phase === 'returning') S.platterGesture = null;
+  if (S.platterGesture) return;
+  const snapshot = readSnapshot() || S.snapshot || {};
+  const state = snapshot.state || 'idle';
+  const wasPlaying = ['playing', 'connecting', 'buffering', 'retrying'].includes(state);
+  const startPosition = Number(snapshot.position ?? S.pendingOffset) || 0;
+  const direction = Number(snapshot.direction) < 0 ? -1 : 1;
+  const speed = clamp(Number(snapshot.speed) || Number($('speed').value) || 1, 0.5, 2);
+  const pointerAngle = platterPointerAngle(event);
+  const startVisualAngle = S.lastVisualRotation ?? platterAngleForPosition(startPosition);
+  S.platterGesture = {
+    active: true,
+    phase: 'pressed',
+    pointerId: event.pointerId,
+    pointerType: event.pointerType,
+    wasPlaying,
+    dragging: false,
+    startX: event.clientX,
+    startY: event.clientY,
+    startPointerAngle: pointerAngle,
+    lastPointerAngle: pointerAngle,
+    lastAt: Number(event.timeStamp) || performance.now(),
+    accumulatedAngle: 0,
+    startPosition,
+    previewPosition: startPosition,
+    startVisualAngle,
+    visualAngle: startVisualAngle,
+    visualOffset: 0,
+    direction,
+    speed,
+    engineSpeed: speed,
+    baseSpeed: clamp(Number($('speed').value) || 1, 0.5, 2),
+    filteredSpeed: null,
+    currentRate: direction * speed,
+    lastEngineUpdate: 0,
+    pausedForScratch: false,
+    waitingForBuffer: false,
+    boundaryReached: false,
+    failed: false,
+  };
+  event.preventDefault();
+  try { $('vinyl').setPointerCapture(event.pointerId); } catch { /* Capture can be unavailable in synthetic events. */ }
+}
+
+function movePlatterGesture(event) {
+  const gesture = S.platterGesture;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  const samples = event.getCoalescedEvents?.() || [event];
+  for (const sample of samples) {
+    const pointerAngle = platterPointerAngle(sample);
+    const delta = unwrapAngleDelta(pointerAngle, gesture.lastPointerAngle);
+    const at = Number(sample.timeStamp) || performance.now();
+    const dt = clamp(at - gesture.lastAt, 4, 120) / 1000;
+    gesture.accumulatedAngle += delta;
+    gesture.lastPointerAngle = pointerAngle;
+    gesture.lastAt = at;
+    if (!gesture.dragging) {
+      const distance = Math.hypot(sample.clientX - gesture.startX, sample.clientY - gesture.startY);
+      if (distance < PLATTER_DRAG_THRESHOLD_PX) continue;
+      gesture.dragging = true;
+      gesture.phase = 'dragging';
+      $('vinyl').classList.add('is-scratching');
+      if (!gesture.wasPlaying) {
+        S.seekDragging = true;
+        $('seek').classList.add('is-dragging');
+      }
+    }
+
+    gesture.visualAngle = gesture.startVisualAngle + gesture.accumulatedAngle * 180 / Math.PI;
+    if (!gesture.wasPlaying) {
+      const duration = Number(S.snapshot?.duration || S.current?.duration) || 0;
+      const target = gesture.startPosition + gesture.accumulatedAngle / (Math.PI * 2) * platterTurnSeconds();
+      gesture.previewPosition = duration > 0 ? clamp(target, 0, duration) : Math.max(0, target);
+      setSeekUI(gesture.previewPosition, duration, 0);
+    } else if (!gesture.failed) {
+      const nominalAngularSpeed = Math.PI * 2 / platterTurnSeconds();
+      const angularSpeed = delta / Math.max(dt, 0.004);
+      const rawRate = angularSpeed / nominalAngularSpeed;
+      if (Math.abs(rawRate) < PLATTER_DIRECTION_DEADBAND) {
+        applyPlatterRate(0, gesture);
+      } else {
+        const rawMagnitude = Math.abs(rawRate);
+        const filtered = gesture.filteredSpeed === null
+          ? rawMagnitude
+          : gesture.filteredSpeed + (rawMagnitude - gesture.filteredSpeed) * 0.42;
+        gesture.filteredSpeed = filtered;
+        applyPlatterRate(Math.sign(rawRate) * clamp(filtered, 0.1, PLATTER_MAX_SPEED), gesture);
+      }
+    }
+  }
+  if (gesture.dragging) {
+    $('vinyl').style.transform = `rotate(${gesture.visualAngle}deg)`;
+    if (gesture.wasPlaying) {
+      clearTimeout(gesture.inactivityTimer);
+      gesture.inactivityTimer = setTimeout(() => {
+        if (S.platterGesture === gesture && gesture.dragging && !gesture.failed) {
+          gesture.filteredSpeed = 0;
+          applyPlatterRate(0, gesture);
+        }
+      }, PLATTER_STILL_TIMEOUT_MS);
+    }
+    updatePlatterReadout(gesture);
+  }
+}
+
+function finishPlatterGesture({ commit = true, immediate = false } = {}) {
+  const gesture = S.platterGesture;
+  if (!gesture) return;
+  const vinyl = $('vinyl');
+  clearTimeout(gesture.inactivityTimer);
+  const pointerId = gesture.pointerId;
+  gesture.pointerId = null;
+  if (pointerId !== null && vinyl.hasPointerCapture?.(pointerId)) {
+    try { vinyl.releasePointerCapture(pointerId); } catch { /* Pointer may already be cancelled. */ }
+  }
+  vinyl.classList.remove('is-scratching');
+
+  if (!gesture.dragging) {
+    S.platterGesture = null;
+    updatePlatterReadout(null);
+    return;
+  }
+
+  if (!gesture.wasPlaying) {
+    S.seekDragging = false;
+    $('seek').classList.remove('is-dragging');
+    S.platterGesture = null;
+    const position = commit ? gesture.previewPosition : gesture.startPosition;
+    if (commit) seekTo(position);
+    else setSeekUI(position, S.snapshot?.duration || S.current?.duration || 0, 0);
+    updatePlatterReadout(null);
+    return;
+  }
+
+  if (gesture.failed) {
+    S.platterGesture = null;
+    updatePlatterReadout(null);
+    return;
+  }
+
+  if (immediate) {
+    applyPlatterRate(gesture.baseSpeed, gesture);
+    S.platterGesture = null;
+    updatePlatterReadout(null);
+    return;
+  }
+
+  const snapshot = readSnapshot() || S.snapshot || {};
+  const actualAngle = platterAngleForPosition(Number(snapshot.position) || gesture.startPosition);
+  gesture.visualOffset = gesture.visualAngle - actualAngle;
+  gesture.releaseRate = gesture.currentRate || 0;
+  gesture.releaseAt = performance.now();
+  gesture.phase = 'returning';
+  gesture.speed = Math.abs(gesture.releaseRate);
+  updatePlatterReadout(gesture);
+
+  const returnFrame = (now) => {
+    if (S.platterGesture !== gesture) return;
+    const elapsed = now - gesture.releaseAt;
+    const rate = gesture.baseSpeed
+      + (gesture.releaseRate - gesture.baseSpeed) * Math.exp(-elapsed / PLATTER_RETURN_TAU_MS);
+    applyPlatterRate(rate, gesture);
+    updatePlatterReadout(gesture);
+    if (elapsed >= PLATTER_RETURN_DURATION_MS) {
+      applyPlatterRate(gesture.baseSpeed, gesture);
+      S.platterGesture = null;
+      updatePlatterReadout(null);
+      return;
+    }
+    requestAnimationFrame(returnFrame);
+  };
+  requestAnimationFrame(returnFrame);
+}
+
+function abandonPlatterGesture({ commitSeek = false, restoreRate = false } = {}) {
+  const gesture = S.platterGesture;
+  if (!gesture) return;
+  clearTimeout(gesture.inactivityTimer);
+  if (gesture.pointerId !== null && $('vinyl').hasPointerCapture?.(gesture.pointerId)) {
+    try { $('vinyl').releasePointerCapture(gesture.pointerId); } catch { /* Already cancelled. */ }
+  }
+  $('vinyl').classList.remove('is-scratching');
+  $('platterTarget').classList.remove('is-visible');
+  S.platterGesture = null;
+  S.seekDragging = false;
+  $('seek').classList.remove('is-dragging');
+  if (!gesture.wasPlaying && gesture.dragging) {
+    const position = commitSeek ? gesture.previewPosition : gesture.startPosition;
+    if (commitSeek) seekTo(position);
+    else setSeekUI(position, S.snapshot?.duration || S.current?.duration || 0, 0);
+  }
+  if (restoreRate && gesture.wasPlaying && !gesture.failed) {
+    applyPlatterRate(gesture.baseSpeed, gesture);
+  }
+  updatePlatterReadout(null);
+}
+
 function updateVolumeUI() {
   $('volume').value = String(S.volume);
   const use = $('muteBtn').querySelector('use');
@@ -1127,6 +1879,7 @@ function updateVolumeUI() {
 // ---------------------------------------------------------------------------
 
 async function probeTrack(track) {
+  if (track?.cachedOnly) { toast('本机缓存快照请直接播放；试音需要远端列表。'); return; }
   if (!track || track.isExtra) return null;
   if (S.test.get(track.key)?.state === 'testing') return null;
   S.test.set(track.key, { state: 'testing' });
@@ -1307,6 +2060,7 @@ function updateChain(snap) {
 
 function updateStats(snap) {
   if (!snap) return;
+  updateCacheSource(snap);
   $('statHttp').textContent = snap.http_status || '—';
   $('statHttp').style.color = snap.http_status >= 400 ? 'var(--red)' : snap.http_status ? 'var(--green)' : '';
   $('statFormat').textContent = snap.rate ? `${(snap.rate / 1000).toFixed(1)}k · ${snap.channels}ch` : '—';
@@ -1445,16 +2199,15 @@ function clearRecordOverlay() {
 
 // Light marks age on the record surface, travelling clockwise at the vinyl's
 // 9-second media revolution period. Constant decay sets each mark's lifetime.
-function drawNeedleTrace(state, position, rms) {
+function drawNeedleTrace(state, position, rms, rotationDelta) {
   const canvas = $('ring');
   const vinyl = $('vinyl');
   const tip = $('needleContact');
   if (!canvas || !vinyl || !tip) return;
   const now = performance.now() / 1000;
 
-  const turnSeconds = Number(getComputedStyle(vinyl).getPropertyValue('--record-turn-seconds')) || 9;
-  const angularSpeed = Math.PI * 2 / turnSeconds;
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const angularSpeed = Math.PI * 2 / platterTurnSeconds();
+  const reduced = motionPreferenceReduced();
   const rect = canvas.getBoundingClientRect();
   const contact = tip.getBoundingClientRect();
   const cx = canvas.clientWidth / 2;
@@ -1463,11 +2216,12 @@ function drawNeedleTrace(state, position, rms) {
   const y = (contact.top + contact.height / 2 - rect.top) * canvas.clientHeight / rect.height;
   const radius = Math.hypot(x - cx, y - cy);
   const angle = Math.atan2(y - cy, x - cx);
-  // Pause freezes existing marks on the disc, while their light still fades.
+  // Large media jumps clear stale marks. Existing marks otherwise follow the
+  // exact angle rendered on the platter, including direct manual movement.
   const dt = S.needleTraceAt ? Math.min(now - S.needleTraceAt, .1) : 0;
   const mediaDelta = S.needleMediaPosition === null ? 0 : position - S.needleMediaPosition;
   S.needleMediaPosition = position;
-  if (mediaDelta < 0 || mediaDelta > 1) S.needleTrace = [];
+  if (Math.abs(mediaDelta) > 1) S.needleTrace = [];
   S.needleTraceAt = now;
   // Gently smooth the musical envelope, then multiply by volume exactly.
   // Each deposited mark has its own initial brightness and constant decay.
@@ -1477,8 +2231,11 @@ function drawNeedleTrace(state, position, rms) {
   const target = waveformLightFactor(rms, gain);
   const response = target > S.needleStrength ? .12 : .5;
   S.needleStrength += (target - S.needleStrength) * (1 - Math.exp(-dt / response));
+  const gesture = S.platterGesture;
+  const moveMarks = state === 'playing'
+    || (gesture?.dragging && (!gesture.wasPlaying || !gesture.waitingForBuffer));
   for (const mark of S.needleTrace) {
-    if (state === 'playing') mark.angle += angularSpeed * Math.max(0, mediaDelta);
+    if (moveMarks) mark.angle += rotationDelta * Math.PI / 180;
   }
   S.needleTrace = S.needleTrace.filter((mark) => lightAt(mark.strength, now - mark.born) > 0);
   const label = $('label');
@@ -1490,10 +2247,13 @@ function drawNeedleTrace(state, position, rms) {
   const ctx = canvas.getContext('2d');
   ctx.save();
   ctx.lineCap = 'round';
+  const rate = gesture?.dragging || gesture?.phase === 'returning'
+    ? gesture.currentRate
+    : (Number(S.snapshot?.direction) < 0 ? -1 : 1) * (Number(S.snapshot?.speed) || 1);
   for (const mark of S.needleTrace) {
     const light = lightAt(mark.strength, now - mark.born);
     ctx.beginPath();
-    ctx.arc(cx, cy, mark.radiusRatio * cx, mark.angle, mark.angle + angularSpeed * Math.max(dt * (S.snapshot?.speed || 1), .018));
+    ctx.arc(cx, cy, mark.radiusRatio * cx, mark.angle, mark.angle + Math.sign(rate || 1) * angularSpeed * Math.max(dt * Math.abs(rate || 1), .018));
     const [r, g, b] = S.needleColor;
     ctx.strokeStyle = `rgba(${r},${g},${b},${light * .85})`;
     ctx.lineWidth = .8 + light * 1.3;
@@ -1586,9 +2346,29 @@ function drawVisuals(snap) {
   const state = snap?.state || 'idle';
   const position = Number(snap?.position) || 0;
   const vinyl = $('vinyl');
-  const period = Number(getComputedStyle(vinyl).getPropertyValue('--record-turn-seconds')) || 9;
-  vinyl.style.transform = matchMedia('(prefers-reduced-motion: reduce)').matches
-    ? '' : `rotate(${position / period * 360}deg)`;
+  const gesture = S.platterGesture;
+  let angle = platterAngleForPosition(position);
+  let showTarget = false;
+  if (gesture?.dragging) {
+    if (!gesture.wasPlaying || gesture.boundaryReached || gesture.waitingForBuffer) {
+      showTarget = gesture.wasPlaying;
+    } else {
+      angle = gesture.visualAngle;
+    }
+    if (!gesture.wasPlaying) angle = gesture.visualAngle;
+  } else if (gesture?.phase === 'returning') {
+    const elapsed = performance.now() - gesture.releaseAt;
+    const progress = clamp(elapsed / PLATTER_RETURN_DURATION_MS, 0, 1);
+    angle += gesture.visualOffset * (1 - progress) ** 2;
+  }
+  const reduced = motionPreferenceReduced();
+  const renderAngle = reduced && !gesture?.dragging ? 0 : angle;
+  vinyl.style.transform = reduced && !gesture?.dragging ? '' : `rotate(${renderAngle}deg)`;
+  const target = $('platterTarget');
+  target.classList.toggle('is-visible', showTarget);
+  if (showTarget) target.style.transform = `rotate(${gesture.visualAngle}deg)`;
+  const rotationDelta = S.lastVisualRotation === null ? 0 : renderAngle - S.lastVisualRotation;
+  S.lastVisualRotation = renderAngle;
   let rms = 0;
   let peak = 0;
   if (state === 'playing') {
@@ -1599,7 +2379,7 @@ function drawVisuals(snap) {
     } catch { /* ignore */ }
   }
   clearRecordOverlay();
-  drawNeedleTrace(state, position, rms);
+  drawNeedleTrace(state, position, rms, rotationDelta);
   drawScope(state);
 
   S.peakHold = Math.max(peak, S.peakHold * 0.94);
@@ -1692,16 +2472,48 @@ function onSnapshot(snap, now) {
 
   // A fast failed manual retry may return to error between two UI polls.
   if (snap.state === 'error' && snap.error) showError(snap.error);
+  if (snap.state === 'paused' && String(snap.error || '').startsWith('倒放已停在本机缓存边界')) {
+    showError(snap.error, { status: 0 });
+    $('retryBtn').textContent = '继续正放';
+  }
   if (snap.state === 'retrying') {
     $('deckState').textContent = `重连 ${snap.retry_attempt}/5`;
     $('liveText').textContent = `${Math.ceil((snap.retry_in_ms || 0) / 1000)}s 后重试`;
   }
+  if (S.platterGesture?.active && S.platterGesture.wasPlaying) {
+    const gesture = S.platterGesture;
+    gesture.waitingForBuffer = gesture.dragging
+      && ['connecting', 'buffering', 'retrying'].includes(snap.state);
+    if (Number(snap.direction) < 0 && snap.state === 'paused' && snap.stream_done) {
+      if (!gesture.boundaryReached) toast('倒放已停在本机缓存边界，播放位置保持在这里。', 'ok');
+      gesture.boundaryReached = true;
+      gesture.speed = 0;
+      gesture.currentRate = 0;
+      gesture.waitingForBuffer = false;
+    }
+    if (snap.state === 'error') {
+      gesture.failed = true;
+      gesture.speed = 0;
+      gesture.currentRate = 0;
+      gesture.waitingForBuffer = false;
+      try {
+        wav2api_set_speed(gesture.baseSpeed);
+        if (Number(snap.direction) < 0) wav2api_set_direction(1);
+        gesture.engineSpeed = gesture.baseSpeed;
+        gesture.direction = 1;
+      } catch { /* Keep the error report visible if recovery also fails. */ }
+    }
+    updatePlatterReadout(gesture);
+  }
   if (S.current?.isGroup && snap.chunks > 0 && snap.path && S.current.path !== snap.path) {
     Object.assign(S.current, { path: snap.path, title: snap.title, artist: snap.artist,
       display_name: snap.display_name, duration: snap.duration, ext: extOf(snap.path) });
+    const currentTrack = S.playable.find((track) => track.path === snap.path);
+    if (currentTrack) S.currentKey = currentTrack.key;
     S.lastBadgeKey = '';
     setImmediateTrackUI(S.current);
     updateMediaSession(S.current);
+    renderLibrary();
   }
   if (snap.display_name && !S.current) {
     // The engine has a track even if the page lost its selection (reload).
@@ -1810,6 +2622,7 @@ async function setRoute(route, { silent = false } = {}) {
   const wasPlaying = prevState === 'playing' || prevState === 'buffering' || prevState === 'connecting' || prevState === 'retrying';
   const pos = S.snapshot?.position || 0;
 
+  abandonPlatterGesture();
 
   S.route = route;
   S.playBase = routeBase(route);
@@ -1876,6 +2689,7 @@ async function saveSettings() {
     return;
   }
 
+  abandonPlatterGesture();
   S.route = route;
   S.playBase = base;
   S.catalogBase = catalog;
@@ -1961,6 +2775,7 @@ function setupMediaSession() {
     });
     navigator.mediaSession.setActionHandler('pause', () => {
       if (['playing', 'connecting', 'buffering', 'retrying'].includes(readSnapshot()?.state)) {
+        abandonPlatterGesture({ restoreRate: true });
         wav2api_pause();
         setStateUI('paused');
       }
@@ -1984,7 +2799,42 @@ function setupMediaSession() {
 // UI wiring
 // ---------------------------------------------------------------------------
 
+function bindPlatterUI() {
+  const vinyl = $('vinyl');
+  vinyl.addEventListener('pointerdown', beginPlatterGesture);
+  vinyl.addEventListener('pointermove', movePlatterGesture);
+  vinyl.addEventListener('pointerup', (event) => {
+    if (S.platterGesture?.pointerId === event.pointerId) finishPlatterGesture({ commit: true });
+  });
+  vinyl.addEventListener('pointercancel', (event) => {
+    if (S.platterGesture?.pointerId === event.pointerId) finishPlatterGesture({ commit: false, immediate: true });
+  });
+  vinyl.addEventListener('lostpointercapture', () => {
+    if (S.platterGesture?.dragging && S.platterGesture.pointerId !== null) {
+      finishPlatterGesture({ commit: false, immediate: true });
+    }
+  });
+  vinyl.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const step = event.shiftKey ? 0.25 : 0.05;
+    setBaseSpeed(Number($('speed').value) + (event.key === 'ArrowUp' ? step : -step));
+  });
+  window.addEventListener('blur', () => {
+    if (S.platterGesture?.dragging) finishPlatterGesture({ commit: false, immediate: true });
+    else if (S.platterGesture?.phase === 'returning') abandonPlatterGesture({ restoreRate: true });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    if (S.platterGesture?.dragging) finishPlatterGesture({ commit: false, immediate: true });
+    else if (S.platterGesture?.phase === 'returning') abandonPlatterGesture({ restoreRate: true });
+  });
+  updatePlatterReadout(null);
+}
+
 function bindUI() {
+  bindPlatterUI();
+  bindCacheUI();
   $('playBtn').addEventListener('click', togglePlay);
   $('stopBtn').addEventListener('click', stopPlayback);
   const updateModeButtons = () => {
@@ -2008,7 +2858,7 @@ function bindUI() {
   $('nextBtn').addEventListener('click', () => stepTrack(1));
   $('muteBtn').addEventListener('click', toggleMute);
   $('retryBtn').addEventListener('click', async () => {
-    if (S.connectionError || !S.current) {
+    if (S.connectionError || !S.current || S.uiErrorRefreshCatalog) {
       await refreshAll();
       if (S.playable.length) restoreSelection();
       return;
@@ -2017,14 +2867,6 @@ function bindUI() {
     playTrack(S.current, live?.position || 0, { preserveSession: true });
   });
 
-  const setSpeed = (value) => {
-    const speed = clamp(Number(value), .5, 2);
-    try {
-      wav2api_set_speed(speed);
-      $('speed').value = String(speed);
-      $('speedValue').textContent = `${speed.toFixed(2)}×`;
-    } catch (error) { toast(`调速失败：${error}`, 'err'); }
-  };
   const chunkOptions = [16 * 1024, 32 * 1024, 64 * 1024, 0, 128 * 1024, 256 * 1024, 512 * 1024, 1024 * 1024, 0xffffffff];
   $('chunkLimit').addEventListener('input', (event) => {
     const bytes = chunkOptions[Number(event.target.value)];
@@ -2032,8 +2874,8 @@ function bindUI() {
     $('chunkValue').textContent = bytes === 0xffffffff ? '自动' : bytes === 0 ? '默认' : `${bytes / 1024} KiB`;
     $('chunkValue').title = '下次播放或定位生效；默认约 500 ms，自动模式上限 1 MiB PCM';
   });
-  $('speed').addEventListener('input', (event) => setSpeed(event.target.value));
-  $('speedReset').addEventListener('click', () => setSpeed(1));
+  $('speed').addEventListener('input', (event) => setBaseSpeed(event.target.value));
+  $('speedReset').addEventListener('click', () => setBaseSpeed(1));
   $('volume').addEventListener('input', (e) => {
     S.volume = clamp(Number(e.target.value), 0, 1);
     S.muted = false;
@@ -2074,6 +2916,7 @@ function bindUI() {
 
   $('search').addEventListener('input', (e) => {
     S.query = e.target.value;
+    S.renderLimit = MAX_ROWS;
     renderLibrary();
     renderCounts();
     $('trackList').scrollTop = 0;
@@ -2082,6 +2925,7 @@ function bindUI() {
   $$('.chip').forEach((chip) => {
     chip.addEventListener('click', () => {
       S.filter = chip.dataset.filter;
+      S.renderLimit = MAX_ROWS;
       $$('.chip').forEach((c) => c.classList.toggle('is-active', c === chip));
       renderLibrary();
       renderCounts();
@@ -2092,10 +2936,19 @@ function bindUI() {
   $('testAllBtn').addEventListener('click', startTestAll);
   $('refreshBtn').addEventListener('click', () => refreshAll());
   $('moreBtn').addEventListener('click', () => {
-    S.showAll = true;
-    savePrefs();
+    S.renderLimit += MAX_ROWS;
     renderLibrary();
+    renderCounts();
   });
+  $('locateCurrentBtn').addEventListener('click', locateCurrentTrack);
+  $('motionOverrideBtn').addEventListener('click', () => {
+    S.motionOverride = !S.motionOverride;
+    updateMotionOverrideUI();
+  });
+  const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+  if (motionQuery.addEventListener) motionQuery.addEventListener('change', updateMotionOverrideUI);
+  else motionQuery.addListener(updateMotionOverrideUI);
+  updateMotionOverrideUI();
 
   $('trackList').addEventListener('click', (e) => {
     const group = e.target.closest('.group-head');
@@ -2244,7 +3097,7 @@ function bindUI() {
       }
       return;
     }
-    if (typing) return;
+    if (typing || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || $('cacheDialog').open || $('settingsDialog').open) return;
     const onControl = t && t.closest && t.closest('button, a, [role="button"]');
     if (e.code === 'Space') {
       if (onControl) return;
@@ -2303,7 +3156,7 @@ function restoreSelection() {
 
 async function boot() {
   try {
-    await init({ module_or_path: new URL('./pkg/wav2api_player_bg.wasm?build=3ef553be2f30', import.meta.url) });
+    await init({ module_or_path: new URL('./pkg/wav2api_player_bg.wasm?build=16c84b470c45', import.meta.url) });
   } catch (e) {
     window.wav2apiBoot?.fail(`WASM 加载失败：${e?.message || e}`);
     return;

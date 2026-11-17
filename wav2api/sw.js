@@ -1,7 +1,8 @@
-const CACHE = 'wav2api-3ef553be2f30';
-const SHELL = ['./connection-settings.js?build=3ef553be2f30', './', './index.html', './app.css?build=3ef553be2f30',
-  './playback-policy.js?build=3ef553be2f30', './app.js?build=3ef553be2f30', './boot.js?build=3ef553be2f30',
-  './pkg/wav2api_player.js?build=3ef553be2f30', './pkg/wav2api_player_bg.wasm?build=3ef553be2f30',
+const CACHE = 'wav2api-16c84b470c45';
+const SHELL = ['./connection-settings.js?build=16c84b470c45', './', './index.html', './app.css?build=16c84b470c45',
+  './playback-policy.js?build=16c84b470c45', './audio-cache.js?build=16c84b470c45',
+  './app.js?build=16c84b470c45', './boot.js?build=16c84b470c45',
+  './pkg/wav2api_player.js?build=16c84b470c45', './pkg/wav2api_player_bg.wasm?build=16c84b470c45',
   './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
